@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚠️ Обнаружена подозрительная активность</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0a0a0a;
+            color: #00ff00;
+            overflow-x: hidden;
+            position: relative;
+        }
+        
+        /* Эффект матрицы на фоне */
+        .matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+            pointer-events: none;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: glitch 2s infinite;
+        }
+        
+        @keyframes glitch {
+            0%, 100% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            color: #ff0000;
+            text-shadow: 0 0 10px #ff0000, 0 0 20px #ff0000;
+            margin-bottom: 1rem;
+            letter-spacing: 3px;
+        }
+        
+        .header .subtitle {
+            font-size: 1.2rem;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+        }
+        
+        .report-box {
+            background: rgba(0, 255, 0, 0.05);
+            border: 2px solid #00ff00;
+            border-radius: 10px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+        }
+        
+        .report-section {
+            margin-bottom: 2rem;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.5);
+            border-left: 3px solid #00ff00;
+        }
+        
+        .report-section h2 {
+            color: #ffff00;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+            text-transform: uppercase;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+        }
+        
+        .info-label {
+            color: #00ffff;
+            font-weight: bold;
+        }
+        
+        .info-value {
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .warning-box {
+            background: rgba(255, 0, 0, 0.1);
+            border: 2px solid #ff0000;
+            padding: 1.5rem;
+            margin: 2rem 0;
+            border-radius: 5px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 10px rgba(255, 0, 0, 0.5); }
+            50% { box-shadow: 0 0 30px rgba(255, 0, 0, 0.8); }
+        }
+        
+        .warning-box h3 {
+            color: #ff0000;
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+        
+        .warning-box p {
+            color: #ffaaaa;
+            line-height: 1.6;
+        }
+        
+        .fingerprint {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            padding: 1rem;
+            border: 1px solid #00ff00;
+            border-radius: 5px;
+            word-break: break-all;
+            color: #00ff00;
+            margin: 1rem 0;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #000;
+            border: 2px solid #00ff00;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 1rem 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff00, #00ffff);
+            width: 0%;
+            animation: progress 3s ease-in-out forwards;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        
+        @keyframes progress {
+            to { width: 100%; }
+        }
+        
+        .footer-note {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            border-top: 1px solid rgba(0, 255, 0, 0.3);
+            color: #888;
+            font-size: 0.9rem;
+        }
+        
+        .ascii-art {
+            font-family: 'Courier New', monospace;
+            white-space: pre;
+            color: #00ff00;
+            font-size: 0.7rem;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        
+        .timestamp {
+            color: #888;
+            font-size: 0.9rem;
+            text-align: right;
+            margin-bottom: 1rem;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .info-row {
+                flex-direction: column;
+            }
+            
+            .info-label {
+                margin-bottom: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="matrix-bg" id="matrix"></div>
+    
+    <div class="container">
+        <div class="timestamp" id="timestamp"></div>
+        
+        <div class="header">
+            <h1>⚠️ ПЕРЕХВАТ АКТИВНОСТИ</h1>
+            <div class="subtitle">[SECURITY ALERT - UNAUTHORIZED ACCESS DETECTED]</div>
+        </div>
+        
+        <div class="ascii-art">
+    ██████╗ ███████╗██████╗ ███████╗██╗  ██╗██╗   ██╗████████╗
+    ██╔══██╗██╔════╝██╔══██╗██╔════╝╚██╗██╔╝╚██╗ ██╔╝╚══██╔══╝
+    ██████╔╝█████╗  ██████╔╝█████╗   ╚███╔╝  ╚████╔╝    ██║   
+    ██╔══██╗██╔══╝  ██╔══██╗██╔══╝   ██╔██╗   ╚██╔╝     ██║   
+    ██║  ██║███████╗██║  ██║███████╗██╔╝ ██╗   ██║      ██║   
+    ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝   ╚═╝      ╚═╝   
+        </div>
+        
+        <div class="report-box">
+            <div class="warning-box">
+                <h3>🚨 ВНИМАНИЕ: ВАША АКТИВНОСТЬ БЫЛА ЗАФИКСИРОВАНА</h3>
+                <p>
+                    Система безопасности обнаружила подозрительную активность с вашего устройства. 
+                    Все данные о вашем подключении были записаны и переданы в службу безопасности.
+                </p>
+            </div>
+            
+            <div class="report-section">
+                <h2>📊 ОТЧЕТ О ПЕРЕХВАТЕ</h2>
+                
+                <div class="info-row">
+                    <span class="info-label">Время перехвата:</span>
+                    <span class="info-value" id="intercept-time"></span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">IP Адрес:</span>
+                    <span class="info-value" id="ip-address"></span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Браузер:</span>
+                    <span class="info-value" id="browser"></span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Операционная система:</span>
+                    <span class="info-value" id="os"></span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Устройство:</span>
+                    <span class="info-value" id="device"></span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Язык:</span>
+                    <span class="info-value" id="language"></span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">Реферер:</span>
+                    <span class="info-value" id="referer"></span>
+                </div>
+            </div>
+            
+            <div class="report-section">
+                <h2>🔐 ЦИФРОВОЙ ОТПЕЧАТОК</h2>
+                <p style="color: #888; margin-bottom: 1rem;">
+                    Уникальный идентификатор вашего браузера:
+                </p>
+                <div class="fingerprint" id="fingerprint"></div>
+                <p style="color: #888; margin-top: 1rem; font-size: 0.9rem;">
+                    Этот отпечаток позволяет идентифицировать вас даже при смене IP адреса.
+                </p>
+            </div>
+            
+            <div class="report-section">
+                <h2>📈 СТАТУС АНАЛИЗА</h2>
+                <p style="color: #888; margin-bottom: 1rem;">Обработка данных...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+                <p style="color: #00ff00; margin-top: 1rem; text-align: center;">
+                    ✓ Данные успешно записаны в базу безопасности
+                </p>
+            </div>
+            
+            <div class="report-section">
+                <h2>⚠️ РЕКОМЕНДАЦИИ</h2>
+                <ul style="color: #ffaaaa; margin-left: 2rem; line-height: 2;">
+                    <li>Используйте VPN для защиты своей приватности</li>
+                    <li>Регулярно очищайте cookies и кэш браузера</li>
+                    <li>Используйте режим инкогнито для чувствительных операций</li>
+                    <li>Установите расширения для блокировки трекеров</li>
+                    <li>Будьте осторожны при посещении незнакомых сайтов</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="footer-note">
+            <p>Это демонстрационная страница для образовательных целей.</p>
+            <p style="margin-top: 0.5rem;">Все данные собираются только в рамках учебного проекта по кибербезопасности.</p>
+            <p style="margin-top: 1rem; color: #00ff00;">
+                ID отчета: <span id="report-id"></span>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Данные из Flask шаблона (автоматически конвертируются в JSON)
+        const reportData = {{ intercept_data | tojson }};
+        
+        // Заполнение данных отчета
+        document.getElementById('intercept-time').textContent = reportData.timestamp || new Date().toLocaleString('ru-RU');
+        document.getElementById('ip-address').textContent = reportData.ip_address || 'Скрыто';
+        document.getElementById('browser').textContent = reportData.browser || navigator.userAgent;
+        document.getElementById('os').textContent = reportData.os || 'Неизвестно';
+        document.getElementById('device').textContent = reportData.device || 'Неизвестно';
+        document.getElementById('language').textContent = reportData.accept_language || navigator.language;
+        document.getElementById('referer').textContent = reportData.referer || document.referrer || 'Прямой переход';
+        document.getElementById('fingerprint').textContent = reportData.fingerprint || 'Генерация...';
+        document.getElementById('report-id').textContent = reportData.session_id || Math.random().toString(36).substr(2, 16).toUpperCase();
+        document.getElementById('timestamp').textContent = new Date().toLocaleString('ru-RU');
+        
+        // Генерация эффекта матрицы
+        function createMatrix() {
+            const matrix = document.getElementById('matrix');
+            const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
+            const fontSize = 14;
+            const columns = Math.floor(window.innerWidth / fontSize);
+            const drops = Array(columns).fill(1);
+            
+            function draw() {
+                const ctx = document.createElement('canvas');
+                ctx.width = window.innerWidth;
+                ctx.height = window.innerHeight;
+                matrix.appendChild(ctx);
+                const canvas = ctx.getContext('2d');
+                canvas.fillStyle = '#00ff00';
+                canvas.font = fontSize + 'px monospace';
+                
+                setInterval(() => {
+                    canvas.fillStyle = 'rgba(10, 10, 10, 0.05)';
+                    canvas.fillRect(0, 0, ctx.width, ctx.height);
+                    
+                    drops.forEach((drop, i) => {
+                        const text = chars[Math.floor(Math.random() * chars.length)];
+                        canvas.fillStyle = '#00ff00';
+                        canvas.fillText(text, i * fontSize, drop * fontSize);
+                        
+                        if (drop * fontSize > ctx.height && Math.random() > 0.975) {
+                            drops[i] = 0;
+                        }
+                        drops[i]++;
+                    });
+                }, 50);
+            }
+            
+            draw();
+        }
+        
+        // Запуск эффекта матрицы
+        createMatrix();
+        
+        // Анимация появления данных
+        setTimeout(() => {
+            document.querySelectorAll('.info-value').forEach((el, i) => {
+                setTimeout(() => {
+                    el.style.animation = 'glitch 0.5s';
+                }, i * 100);
+            });
+        }, 1000);
+    </script>
+</body>
+</html>
