@@ -1,0 +1,19 @@
+[Unit]
+Description=GitHub Webhook Server for Auto Update
+After=network.target
+
+[Service]
+Type=simple
+User=%i
+WorkingDirectory=%h/web-interogatter/raspberry-production
+Environment="WEBHOOK_SECRET=YOUR_WEBHOOK_SECRET_HERE"
+Environment="WEBHOOK_PORT=9000"
+Environment="GIT_BRANCH=master"
+ExecStart=/usr/bin/python3 %h/web-interogatter/raspberry-production/webhook_server.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
