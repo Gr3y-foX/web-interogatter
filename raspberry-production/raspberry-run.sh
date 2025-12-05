@@ -114,7 +114,9 @@ build_images() {
 start_basic() {
     print_info "Запуск основных сервисов (оптимизировано для Raspberry Pi)..."
     
-    $COMPOSE_CMD up -d interceptor tor-relay
+    # Запускаем только interceptor (Tor уже встроен в него)
+    # tor-relay отключен, так как образ не поддерживает ARM64
+    $COMPOSE_CMD up -d interceptor
     
     print_success "Основные сервисы запущены"
     sleep 5
