@@ -1,0 +1,55 @@
+version: '3.8'
+
+# Docker Compose для Kali Linux - Единый контейнер
+# Все сервисы в одном контейнере для простоты
+
+services:
+  # Основное приложение - Все в одном контейнере
+  web-interceptor:
+    build:
+      context: .
+      dockerfile: Dockerfile.kali
+    container_name: web-interceptor-kali
+    restart: unless-stopped
+    ports:
+      - "5000:5000"     # Flask веб-сервер
+      - "9050:9050"     # Tor SOCKS прокси
+      - "9051:9051"     # Tor Control порт
+    volumes:
+      - interceptor_data:/app/data
+      - interceptor_reports:/app/reports
+      - interceptor_logs:/app/logs
+      - tor_data:/var/lib/tor-interceptor
+    environment:
+      - FLASK_ENV=production
+      - TOR_ENABLED=true
+      - LOG_LEVEL=INFO
+      - MAX_REPORTS=10000
+    networks:
+      - interceptor_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# Сетевая конфигурация
+networks:
+  interceptor_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.22.0.0/16
+
+# Volumes для персистентности данных
+volumes:
+  interceptor_data:
+    driver: local
+  interceptor_reports:
+    driver: local
+  interceptor_logs:
+    driver: local
+  tor_data:
+    driver: local
+
