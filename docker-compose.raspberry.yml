@@ -47,35 +47,9 @@ services:
       retries: 3
       start_period: 90s    # Больше времени на запуск
 
-  # Отдельный Tor контейнер (ОПЦИОНАЛЬНО - отключен по умолчанию)
-  # Примечание: Образ peterdavehello/tor-socks-proxy не поддерживает ARM64
-  # Tor уже встроен в основной контейнер interceptor, этот сервис не обязателен
-  # Если нужен дополнительный Tor прокси, используйте другой образ с поддержкой ARM64
-  tor-relay:
-    image: peterdavehello/tor-socks-proxy:latest
-    container_name: tor-relay-raspberry
-    restart: unless-stopped
-    # platform: linux/arm64  # Отключено - образ не поддерживает ARM64
-    ports:
-      - "9150:9150"     # Дополнительный SOCKS прокси
-    environment:
-      - TOR_NICKNAME=InterceptorRelay
-      - TOR_RELAY=1
-    networks:
-      - interceptor_network
-    volumes:
-      - tor_relay_data:/var/lib/tor
-    # Ограничения ресурсов
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 128M
-    profiles:
-      - tor-relay  # Отключен по умолчанию, включить: docker compose --profile tor-relay up
+  # Примечание: Tor уже встроен в контейнер interceptor
+  # Отдельный tor-relay контейнер удален, так как образ peterdavehello/tor-socks-proxy 
+  # не поддерживает ARM64 архитектуру Raspberry Pi
 
   # Nginx прокси (опционально, можно отключить для экономии ресурсов)
   nginx-proxy:
@@ -148,8 +122,7 @@ volumes:
     driver: local
   tor_data:
     driver: local
-  tor_relay_data:
-    driver: local
+  # tor_relay_data удален - сервис tor-relay больше не используется
   nginx_logs:
     driver: local
 
