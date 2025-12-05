@@ -39,8 +39,8 @@ print_error() {
 }
 
 # Переменные
-PROJECT_NAME="web-server-intercepter"
-DEFAULT_GIT_URL="https://github.com/your-username/web-server-intercepter.git"
+PROJECT_NAME="web-interogatter"
+DEFAULT_GIT_URL="https://github.com/Gr3y-foX/simple_ip_sniffer_-yet-only-local-"
 PROJECT_DIR="$HOME/$PROJECT_NAME"
 
 # Определение git URL
@@ -66,7 +66,7 @@ check_architecture() {
         read -p "Продолжить установку? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            exit 1
+            exit 
         fi
     else
         print_success "Архитектура ARM обнаружена: $ARCH"
