@@ -8,14 +8,7 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile.raspberry
-      args:
-        BUILDKIT_INLINE_CACHE: 1
-      # Используем BuildKit для ускорения сборки
-      x-bake:
-        cache-from:
-          - type=local,src=/tmp/.buildx-cache
-        cache-to:
-          - type=local,dest=/tmp/.buildx-cache,mode=max
+      # BuildKit будет включен через переменные окружения в скрипте
     container_name: web-interceptor-raspberry
     restart: unless-stopped
     ports:
