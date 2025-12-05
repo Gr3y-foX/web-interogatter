@@ -1,6 +1,7 @@
 # Web Server Interceptor - Docker Container для Raspberry Pi 4
 # Оптимизированный образ для ARM64 архитектуры
-FROM python:3.11-slim-bullseye
+# Используем более легкий образ Python 3.9 для ускорения сборки
+FROM python:3.9-slim-bullseye
 
 # Метаданные
 LABEL maintainer="cybersecurity-student"
@@ -9,7 +10,8 @@ LABEL version="1.0-raspberry"
 LABEL architecture="arm64"
 
 # Установка системных зависимостей (оптимизировано для ARM64)
-RUN apt-get update && apt-get install -y \
+# Используем --no-install-recommends для уменьшения размера
+RUN apt-get update && apt-get install -y --no-install-recommends \
     tor \
     curl \
     netcat-openbsd \

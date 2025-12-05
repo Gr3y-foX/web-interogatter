@@ -92,7 +92,20 @@ create_directories() {
 build_images() {
     print_info "Сборка Docker образов для Raspberry Pi..."
     
-    $COMPOSE_CMD build --no-cache
+    # Включение BuildKit для ускорения сборки
+    export DOCKER_BUILDKIT=1
+    export COMPOSE_DOCKER_CLI_BUILD=1
+    
+    # Опция для использования кэша (быстрее) или без кэша (чистая сборка)
+    local no_cache_flag=""
+    if [ "${2:-}" = "--no-cache" ]; then
+        no_cache_flag="--no-cache"
+        print_warning "Сборка без кэша (займет больше времени)"
+    else
+        print_info "Использование кэша для ускорения сборки"
+    fi
+    
+    $COMPOSE_CMD build $no_cache_flag
     
     print_success "Образы собраны"
 }
@@ -355,7 +368,23 @@ main() {
             check_docker
             check_config
             create_directories
-            build_images
+            build_images "$@"
+            ;;
+            
+        "build-no-cache")
+            check_docker
+            check_config
+            create_directories
+            build_images "$@" "--no-cache"
+            ;;
+            
+        "fix-build")
+            print_info "Запуск скрипта исправления проблем сборки..."
+            if [ -f "$SCRIPT_DIR/fix_docker_build.sh" ]; then
+                bash "$SCRIPT_DIR/fix_docker_build.sh"
+            else
+                print_error "Скрипт fix_docker_build.sh не найден"
+            fi
             ;;
             
         "status"|"ps")
@@ -411,7 +440,9 @@ main() {
             echo "  start-tools        - Запуск с SQLite Web"
             echo "  stop, down         - Остановка сервисов"
             echo "  restart            - Перезапуск сервисов"
-            echo "  build              - Сборка образов"
+            echo "  build              - Сборка образов (с кэшем)"
+            echo "  build-no-cache     - Сборка образов без кэша"
+            echo "  fix-build          - Исправить проблемы сборки"
             echo
             echo "Мониторинг:"
             echo "  status, ps         - Статус контейнеров"

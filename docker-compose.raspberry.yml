@@ -1,6 +1,5 @@
-version: '3.8'
-
 # Docker Compose конфигурация для Raspberry Pi 4
+# Примечание: version устарел в новых версиях Docker Compose
 # Оптимизировано для ARM64 архитектуры и ограниченных ресурсов
 
 services:
@@ -9,6 +8,14 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile.raspberry
+      args:
+        BUILDKIT_INLINE_CACHE: 1
+      # Используем BuildKit для ускорения сборки
+      x-bake:
+        cache-from:
+          - type=local,src=/tmp/.buildx-cache
+        cache-to:
+          - type=local,dest=/tmp/.buildx-cache,mode=max
     container_name: web-interceptor-raspberry
     restart: unless-stopped
     ports:
