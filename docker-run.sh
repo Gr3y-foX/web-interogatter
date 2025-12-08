@@ -1,9 +1,14 @@
 #!/bin/bash
 
 # Docker Management Script для Web Server Interceptor
+# Единый скрипт с автоматическим определением платформы (Kali Linux / Raspberry Pi)
 # Упрощенное управление Docker Compose окружением
 
 set -e
+
+# Переход в корневую директорию проекта
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 # Цвета для вывода
 RED='\033[0;31m'
@@ -39,6 +44,94 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
+# Определение платформы
+detect_platform() {
+    local platform=""
+    local args=("$@")
+    
+    # Проверка аргументов командной строки
+    for i in "${!args[@]}"; do
+        if [[ "${args[$i]}" == "--platform"* ]]; then
+            if [[ "${args[$i]}" == --platform=* ]]; then
+                platform="${args[$i]#*=}"
+            elif [[ -n "${args[$i+1]}" ]]; then
+                platform="${args[$i+1]}"
+            fi
+            break
+        fi
+    done
+    
+    # Если платформа не указана, определяем автоматически
+    if [ -z "$platform" ]; then
+        # Проверка на Raspberry Pi
+        if [ -f /proc/device-tree/model ] && grep -qi "raspberry" /proc/device-tree/model 2>/dev/null; then
+            platform="raspberry"
+        elif [ -f /etc/os-release ] && grep -qi "raspbian\|raspberry" /etc/os-release 2>/dev/null; then
+            platform="raspberry"
+        # Проверка архитектуры ARM
+        elif uname -m | grep -qiE "arm|aarch64"; then
+            # ARM архитектура - проверяем дальше
+            if [ -f /etc/os-release ] && grep -qi "kali" /etc/os-release 2>/dev/null; then
+                platform="kali"
+            else
+                # По умолчанию для ARM - Raspberry
+                platform="raspberry"
+            fi
+        # Проверка на Kali Linux
+        elif [ -f /etc/os-release ] && grep -qi "kali" /etc/os-release 2>/dev/null; then
+            platform="kali"
+        else
+            # По умолчанию Kali для x86_64
+            platform="kali"
+        fi
+    fi
+    
+    echo "$platform"
+}
+
+# Получение платформы
+PLATFORM=$(detect_platform "$@")
+
+# Удаление аргументов --platform из списка аргументов
+ARGS=()
+skip_next=false
+for arg in "$@"; do
+    if [ "$skip_next" = true ]; then
+        skip_next=false
+        continue
+    fi
+    if [[ "$arg" == "--platform"* ]]; then
+        if [[ "$arg" != --platform=* ]]; then
+            skip_next=true
+        fi
+        continue
+    fi
+    ARGS+=("$arg")
+done
+
+# Определение файлов конфигурации
+case "$PLATFORM" in
+    "kali")
+        COMPOSE_FILE="docker-compose.kali.yml"
+        DOCKERFILE="Dockerfile.kali"
+        PLATFORM_NAME="Kali Linux"
+        CONTAINER_NAME="web-interceptor-kali"
+        SERVICE_NAME="web-interceptor"
+        ;;
+    "raspberry"|"raspberry-pi"|"rpi")
+        COMPOSE_FILE="docker-compose.raspberry.yml"
+        DOCKERFILE="Dockerfile.raspberry"
+        PLATFORM_NAME="Raspberry Pi"
+        CONTAINER_NAME="web-interceptor-raspberry"
+        SERVICE_NAME="interceptor"
+        ;;
+    *)
+        print_error "Неизвестная платформа: $PLATFORM"
+        print_info "Доступные платформы: kali, raspberry"
+        exit 1
+        ;;
+esac
+
 # Проверка Docker и Docker Compose
 check_docker() {
     if ! command -v docker &> /dev/null; then
@@ -55,9 +148,9 @@ check_docker() {
     
     # Определение команды compose
     if docker compose version &> /dev/null; then
-        COMPOSE_CMD="docker compose"
+        COMPOSE_CMD="docker compose -f $COMPOSE_FILE"
     else
-        COMPOSE_CMD="docker-compose"
+        COMPOSE_CMD="docker-compose -f $COMPOSE_FILE"
     fi
     
     print_success "Docker и Docker Compose доступны"
@@ -65,12 +158,12 @@ check_docker() {
 
 # Проверка файлов конфигурации
 check_config() {
-    print_info "Проверка конфигурационных файлов..."
+    print_info "Проверка конфигурационных файлов для $PLATFORM_NAME..."
     
     local missing_files=()
     
-    [ ! -f "Dockerfile" ] && missing_files+=("Dockerfile")
-    [ ! -f "docker-compose.yml" ] && missing_files+=("docker-compose.yml")
+    [ ! -f "$DOCKERFILE" ] && missing_files+=("$DOCKERFILE")
+    [ ! -f "$COMPOSE_FILE" ] && missing_files+=("$COMPOSE_FILE")
     [ ! -f "docker/entrypoint.sh" ] && missing_files+=("docker/entrypoint.sh")
     [ ! -f "docker/torrc" ] && missing_files+=("docker/torrc")
     [ ! -f "requirements.txt" ] && missing_files+=("requirements.txt")
@@ -91,59 +184,59 @@ check_config() {
 create_directories() {
     print_info "Создание необходимых директорий..."
     
-    mkdir -p docker/grafana/{dashboards,datasources}
+    mkdir -p docker/grafana/{dashboards,datasources} 2>/dev/null || true
     mkdir -p data reports logs
-    
-    # Создание базовой конфигурации Grafana
-    if [ ! -f "docker/grafana/datasources/datasource.yml" ]; then
-        cat > docker/grafana/datasources/datasource.yml << EOF
-apiVersion: 1
-datasources:
-  - name: SQLite
-    type: frser-sqlite-datasource
-    access: proxy
-    url: /data/intercepts.db
-    isDefault: true
-EOF
-    fi
     
     print_success "Директории созданы"
 }
 
 # Сборка образов
 build_images() {
-    print_info "Сборка Docker образов..."
+    print_info "Сборка Docker образов для $PLATFORM_NAME..."
     
-    $COMPOSE_CMD build --no-cache
+    # Включение BuildKit для ускорения сборки
+    export DOCKER_BUILDKIT=1
+    export COMPOSE_DOCKER_CLI_BUILD=1
+    
+    local no_cache_flag=""
+    if [[ "${ARGS[@]}" =~ "--no-cache" ]]; then
+        no_cache_flag="--no-cache"
+        print_warning "Сборка без кэша (займет больше времени)"
+    fi
+    
+    $COMPOSE_CMD build $no_cache_flag
     
     print_success "Образы собраны"
 }
 
 # Запуск основных сервисов
 start_basic() {
-    print_info "Запуск основных сервисов..."
+    print_info "Запуск основных сервисов для $PLATFORM_NAME..."
     
-    $COMPOSE_CMD up -d interceptor tor-relay
+    # Запускаем основной сервис (Tor встроен в оба контейнера)
+    $COMPOSE_CMD up -d "$SERVICE_NAME"
     
     print_success "Основные сервисы запущены"
+    sleep 3
     show_urls
 }
 
 # Запуск всех сервисов
 start_full() {
-    print_info "Запуск всех сервисов..."
+    print_info "Запуск всех сервисов для $PLATFORM_NAME..."
     
     $COMPOSE_CMD up -d
     
     print_success "Все сервисы запущены"
+    sleep 3
     show_urls
 }
 
 # Запуск с мониторингом
 start_monitoring() {
-    print_info "Запуск с системой мониторинга..."
+    print_info "Запуск с системой мониторинга для $PLATFORM_NAME..."
     
-    $COMPOSE_CMD --profile monitoring up -d
+    $COMPOSE_CMD --profile monitoring up -d 2>/dev/null || $COMPOSE_CMD up -d
     
     print_success "Сервисы с мониторингом запущены"
     show_urls
@@ -189,31 +282,43 @@ show_logs() {
 
 # Показ статуса
 show_status() {
-    print_info "Статус сервисов:"
+    print_info "Статус сервисов ($PLATFORM_NAME):"
     $COMPOSE_CMD ps
     
     echo
     print_info "Использование ресурсов:"
-    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
+    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}" 2>/dev/null || \
+    docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
 }
 
 # Показ URL адресов
 show_urls() {
+    local IP_ADDRESS=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "localhost")
+    
     echo
-    print_success "🌐 Доступные сервисы:"
+    print_success "🌐 Доступные сервисы ($PLATFORM_NAME):"
     echo "  📡 Основной сайт:     http://localhost:5000"
+    echo "  📡 Основной сайт:     http://$IP_ADDRESS:5000"
     echo "  🔧 Админ панель:      http://localhost:5000/admin/reports"
     echo "  📊 API отчетов:       http://localhost:5000/admin/api/reports"
-    echo "  🗄️  SQLite Web:       http://localhost:8080"
-    echo "  🌐 Nginx прокси:      http://localhost:80"
-    echo "  🔒 HTTPS:             https://localhost:443"
+    echo
+    
+    # Проверка дополнительных сервисов
+    if docker ps | grep -q "sqlite-analyzer"; then
+        echo "  🗄️  SQLite Web:       http://localhost:8080"
+    fi
+    
+    if docker ps | grep -q "nginx-interceptor"; then
+        echo "  🌐 Nginx прокси:      http://localhost:80"
+    fi
+    
     echo
     print_info "🧅 Tor SOCKS прокси: 127.0.0.1:9050"
     print_info "🎛️  Tor Control:      127.0.0.1:9051"
     
     # Попытка получить .onion адрес
-    if docker exec web-interceptor test -f /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null; then
-        ONION_ADDR=$(docker exec web-interceptor cat /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null)
+    if docker exec "$CONTAINER_NAME" test -f /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null; then
+        ONION_ADDR=$(docker exec "$CONTAINER_NAME" cat /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null)
         print_success "🧅 Hidden Service: http://$ONION_ADDR"
     else
         print_warning "🧅 Hidden Service еще не готов (подождите ~60 секунд)"
@@ -225,8 +330,8 @@ get_onion() {
     print_info "Получение .onion адреса..."
     
     for i in {1..30}; do
-        if docker exec web-interceptor test -f /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null; then
-            ONION_ADDR=$(docker exec web-interceptor cat /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null)
+        if docker exec "$CONTAINER_NAME" test -f /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null; then
+            ONION_ADDR=$(docker exec "$CONTAINER_NAME" cat /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null)
             print_success "🧅 Hidden Service: http://$ONION_ADDR"
             return 0
         fi
@@ -241,7 +346,7 @@ get_onion() {
 new_tor_identity() {
     print_info "Смена Tor идентичности..."
     
-    if docker exec web-interceptor python3 tor_setup.py newip 2>/dev/null; then
+    if docker exec "$CONTAINER_NAME" python3 tor_setup.py newip 2>/dev/null; then
         print_success "Tor идентичность изменена"
     else
         print_error "Не удалось изменить Tor идентичность"
@@ -250,9 +355,20 @@ new_tor_identity() {
 
 # Интерактивная оболочка
 shell() {
-    local service=${1:-"interceptor"}
+    local service=${1:-"$SERVICE_NAME"}
     print_info "Запуск интерактивной оболочки в контейнере: $service"
-    docker exec -it "web-$service" /bin/bash
+    
+    if [ "$service" = "$SERVICE_NAME" ] || [ "$service" = "interceptor" ] || [ "$service" = "web-interceptor" ]; then
+        docker exec -it "$CONTAINER_NAME" /bin/bash
+    else
+        # Попытка найти контейнер по имени сервиса
+        local container=$(docker ps --filter "name=$service" --format "{{.Names}}" | head -1)
+        if [ -n "$container" ]; then
+            docker exec -it "$container" /bin/bash
+        else
+            print_error "Сервис $service не найден"
+        fi
+    fi
 }
 
 # Экспорт данных
@@ -263,13 +379,13 @@ export_data() {
     mkdir -p "$export_dir"
     
     # Экспорт базы данных
-    docker cp web-interceptor:/app/data/intercepts.db "$export_dir/"
+    docker cp "$CONTAINER_NAME:/app/data/intercepts.db" "$export_dir/" 2>/dev/null || true
     
     # Экспорт отчетов
-    docker cp web-interceptor:/app/reports/ "$export_dir/"
+    docker cp "$CONTAINER_NAME:/app/reports/" "$export_dir/" 2>/dev/null || true
     
     # Экспорт логов
-    docker cp web-interceptor:/app/logs/ "$export_dir/"
+    docker cp "$CONTAINER_NAME:/app/logs/" "$export_dir/" 2>/dev/null || true
     
     print_success "Данные экспортированы в: $export_dir"
 }
@@ -278,7 +394,7 @@ export_data() {
 update() {
     print_info "Обновление Docker образов..."
     
-    $COMPOSE_CMD pull
+    $COMPOSE_CMD pull 2>/dev/null || true
     $COMPOSE_CMD build --no-cache
     $COMPOSE_CMD up -d
     
@@ -288,56 +404,55 @@ update() {
 # Основная функция
 main() {
     print_header
+    print_info "Платформа: $PLATFORM_NAME"
+    print_info "Используется: $COMPOSE_FILE"
+    echo
     
-    case "${1:-help}" in
+    check_docker
+    
+    case "${ARGS[0]:-help}" in
         "start"|"up")
-            check_docker
             check_config
             create_directories
             start_basic
             ;;
             
         "start-full")
-            check_docker
             check_config
             create_directories
             start_full
             ;;
             
         "start-monitoring")
-            check_docker
             check_config
             create_directories
             start_monitoring
             ;;
             
         "stop"|"down")
-            check_docker
             stop_services
             ;;
             
         "restart")
-            check_docker
             stop_services
             sleep 2
+            check_config
+            create_directories
             start_basic
             ;;
             
         "build")
-            check_docker
             check_config
             create_directories
             build_images
             ;;
             
         "status"|"ps")
-            check_docker
             show_status
             ;;
             
         "logs")
-            check_docker
-            show_logs "${2}"
+            show_logs "${ARGS[1]}"
             ;;
             
         "urls")
@@ -353,27 +468,26 @@ main() {
             ;;
             
         "shell")
-            check_docker
-            shell "${2}"
+            shell "${ARGS[1]}"
             ;;
             
         "export")
-            check_docker
             export_data
             ;;
             
         "update")
-            check_docker
             update
             ;;
             
         "cleanup")
-            check_docker
             cleanup
             ;;
             
         "help"|*)
             echo "🐳 Web Server Interceptor - Docker Management"
+            echo
+            echo "Платформа: $PLATFORM_NAME (автоопределена)"
+            echo "Используется: $COMPOSE_FILE"
             echo
             echo "Основные команды:"
             echo "  start, up          - Запуск основных сервисов"
@@ -400,6 +514,8 @@ main() {
             echo
             echo "Примеры:"
             echo "  ./docker-run.sh start"
+            echo "  ./docker-run.sh --platform kali start"
+            echo "  ./docker-run.sh --platform raspberry start"
             echo "  ./docker-run.sh logs interceptor"
             echo "  ./docker-run.sh shell"
             ;;
