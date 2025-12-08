@@ -46,12 +46,15 @@ data/onion_address.txt
 *.db
 *.sqlite
 *.sqlite3
+intercepts.db
 
 # Temporary files
 *.tmp
 *.temp
 *.log
 *.pid
+daily.log.*
+*.log.*
 
 # Tor data
 /tmp/tor_interceptor/

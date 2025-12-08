@@ -1,0 +1,105 @@
+# Web Server Interceptor - Единый Docker контейнер для Kali Linux
+# Все в одном образе: приложение, Tor, скрипты
+
+FROM python:3.11-slim-bullseye
+
+# Метаданные
+LABEL maintainer="cybersecurity-student"
+LABEL description="Web Server Interceptor - All-in-one container for Kali Linux"
+LABEL version="2.0"
+LABEL platform="kali-linux"
+
+# Установка системных зависимостей
+RUN apt-get update && apt-get install -y \
+    tor \
+    curl \
+    netcat-openbsd \
+    sqlite3 \
+    procps \
+    net-tools \
+    iputils-ping \
+    git \
+    bash \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -rf /tmp/* \
+    && rm -rf /var/tmp/*
+
+# Создание пользователя для безопасности (не root)
+RUN useradd -m -u 1000 interceptor && \
+    usermod -aG debian-tor interceptor
+
+# Установка рабочей директории
+WORKDIR /app
+
+# Копирование файлов зависимостей
+COPY requirements.txt .
+
+# Установка Python зависимостей
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip cache purge
+
+# Копирование основного кода приложения
+COPY app.py .
+COPY tor_setup.py .
+COPY migrate_db.py .
+COPY view_logs.py .
+
+# Копирование шаблонов
+COPY templates/ templates/
+COPY locales/ locales/
+
+# Копирование скриптов из kali-local
+COPY kali-local/run.sh /app/scripts/run.sh
+COPY kali-local/docker-run.sh /app/scripts/docker-run.sh
+COPY kali-local/setup_tor_redirect.sh /app/scripts/setup_tor_redirect.sh
+
+# Копирование конфигурации Docker
+COPY docker/entrypoint.sh /app/entrypoint.sh
+COPY docker/torrc /etc/tor/torrc-interceptor
+COPY docker/nginx.conf /app/docker/nginx.conf
+
+# Копирование документации (опционально)
+COPY *.md /app/docs/ 2>/dev/null || true
+
+# Создание необходимых директорий
+RUN mkdir -p /app/reports /app/logs /app/data /app/scripts && \
+    chown -R interceptor:interceptor /app
+
+# Создание директорий для Tor
+RUN mkdir -p /var/lib/tor-interceptor /var/log/tor-interceptor && \
+    chown -R interceptor:debian-tor /var/lib/tor-interceptor && \
+    chown -R interceptor:debian-tor /var/log/tor-interceptor && \
+    chmod 750 /var/lib/tor-interceptor /var/log/tor-interceptor
+
+# Установка прав на скрипты
+RUN chmod +x /app/entrypoint.sh && \
+    chmod +x /app/scripts/*.sh 2>/dev/null || true && \
+    chmod +x /app/tor_setup.py
+
+# Переключение на непривилегированного пользователя
+USER interceptor
+
+# Открытие портов
+EXPOSE 5000 9050 9051
+
+# Переменные окружения
+ENV FLASK_APP=app.py
+ENV FLASK_ENV=production
+ENV PYTHONPATH=/app
+ENV TOR_DATA_DIR=/var/lib/tor-interceptor
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:5000/ || exit 1
+
+# Volumes для персистентности данных
+VOLUME ["/app/data", "/app/reports", "/app/logs", "/var/lib/tor-interceptor"]
+
+# Запуск приложения
+ENTRYPOINT ["/app/entrypoint.sh"]
+CMD ["start"]
+

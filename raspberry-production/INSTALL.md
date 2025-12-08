@@ -15,10 +15,10 @@
 
 ```bash
 # Если у вас есть git URL репозитория
-curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/web-server-intercepter/master/raspberry-production/install_and_run.sh | bash -s -- YOUR_GIT_URL
+curl -fsSL https://github.com/Gr3y-foX/web-interogatter/web-server-intercepter/master/raspberry-production/install_and_run.sh | bash -s -- https://github.com/Gr3y-foX/web-interogatter
 
 # Или клонируйте и запустите
-git clone YOUR_GIT_URL ~/web-server-intercepter
+git clone https://github.com/Gr3y-foX/web-interogatter ~/web-server-intercepter
 cd ~/web-server-intercepter/raspberry-production
 chmod +x install_and_run.sh
 ./install_and_run.sh
@@ -58,7 +58,7 @@ sudo apt install -y git curl wget
 cd ~
 
 # Клонирование репозитория
-git clone YOUR_GIT_URL web-server-intercepter
+git clone https://github.com/Gr3y-foX/web-interogatter
 cd web-server-intercepter/raspberry-production
 ```
 
