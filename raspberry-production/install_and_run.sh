@@ -156,50 +156,28 @@ install_system_deps() {
     print_success "Системные зависимости установлены"
 }
 
-# Установка Docker
-install_docker() {
-    print_info "Проверка Docker..."
-    
-    if command -v docker &> /dev/null; then
-        DOCKER_VERSION=$(docker --version)
-        print_success "Docker уже установлен: $DOCKER_VERSION"
-    else
-        print_info "Установка Docker..."
-        curl -fsSL https://get.docker.com -o /tmp/get-docker.sh
-        sudo sh /tmp/get-docker.sh
-        rm /tmp/get-docker.sh
-        
-        # Добавление пользователя в группу docker
-        sudo usermod -aG docker $USER
-        print_success "Docker установлен"
-        print_warning "Необходимо перезайти в систему для применения изменений группы docker"
-    fi
-    
-    # Проверка Docker Compose
-    if docker compose version &> /dev/null; then
-        print_success "Docker Compose доступен"
-    elif command -v docker-compose &> /dev/null; then
-        print_success "Docker Compose доступен"
-    else
-        print_info "Установка Docker Compose..."
-        sudo apt install -y docker-compose-plugin
-        print_success "Docker Compose установлен"
-    fi
-}
-
-# Установка Python зависимостей
+# Установка Python зависимостей (без Docker)
 install_python_deps() {
     print_info "Установка Python зависимостей..."
     
     cd "$PROJECT_DIR"
     
+    # Установка pip пакетов
     if [ -f "requirements.txt" ]; then
+        print_info "Установка пакетов из requirements.txt..."
         pip3 install --user -r requirements.txt
         print_success "Python зависимости установлены"
     else
         print_warning "Файл requirements.txt не найден"
     fi
+    
+    # Проверка установки критических пакетов
+    print_info "Проверка установленных пакетов..."
+    python3 -c "import flask" 2>/dev/null && print_success "Flask установлен" || print_warning "Flask не установлен"
+    python3 -c "import stem" 2>/dev/null && print_success "Stem установлен" || print_warning "Stem не установлен"
+    python3 -c "import requests" 2>/dev/null && print_success "Requests установлен" || print_warning "Requests не установлен"
 }
+
 
 # Настройка проекта
 setup_project() {
@@ -233,17 +211,20 @@ start_server() {
     fi
     
     # Проверка, не запущен ли уже сервер
-    if docker ps 2>/dev/null | grep -q "web-interceptor-raspberry"; then
-        print_warning "Сервер уже запущен"
-        read -p "Перезапустить? (y/N): " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            ./raspberry-run.sh stop
-            sleep 2
-        else
-            print_info "Используется существующий сервер"
-            ./raspberry-run.sh status
-            return 0
+    if [ -f "/tmp/web-interceptor-flask.pid" ]; then
+        FLASK_PID=$(cat /tmp/web-interceptor-flask.pid)
+        if kill -0 "$FLASK_PID" 2>/dev/null; then
+            print_warning "Сервер уже запущен (PID: $FLASK_PID)"
+            read -p "Перезапустить? (y/N): " -n 1 -r
+            echo
+            if [[ $REPLY =~ ^[Yy]$ ]]; then
+                ./raspberry-run.sh stop
+                sleep 2
+            else
+                print_info "Используется существующий сервер"
+                ./raspberry-run.sh status
+                return 0
+            fi
         fi
     fi
     
@@ -277,15 +258,22 @@ show_info() {
     echo
     
     # Получение .onion адреса (если готов)
-    if docker ps | grep -q "web-interceptor-raspberry"; then
-        sleep 5
-        if docker exec web-interceptor-raspberry test -f /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null; then
-            ONION_ADDR=$(docker exec web-interceptor-raspberry cat /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null)
+    sleep 5
+    if [ -f "/tmp/tor_interceptor/hidden_service/hostname" ] || \
+       [ -f "/var/lib/tor-interceptor/hidden_service/hostname" ] || \
+       [ -f "$PROJECT_DIR/data/onion_address.txt" ]; then
+        ONION_ADDR=$(cat /tmp/tor_interceptor/hidden_service/hostname 2>/dev/null || \
+                     cat /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null || \
+                     cat "$PROJECT_DIR/data/onion_address.txt" 2>/dev/null | head -1)
+        if [ -n "$ONION_ADDR" ] && [[ "$ONION_ADDR" == *.onion ]]; then
             print_success "Tor Hidden Service: http://$ONION_ADDR"
         else
             print_info "Tor Hidden Service еще не готов (подождите ~60 секунд)"
             print_info "Получить адрес: ./raspberry-run.sh onion"
         fi
+    else
+        print_info "Tor Hidden Service еще не готов (подождите ~60 секунд)"
+        print_info "Получить адрес: ./raspberry-run.sh onion"
     fi
     echo
 }
@@ -297,7 +285,6 @@ main() {
     check_architecture
     setup_git_repo
     install_system_deps
-    install_docker
     install_python_deps
     setup_project
     

@@ -37,9 +37,9 @@ cd ~/web-server-intercepter/raspberry-production
 
 Скрипт автоматически:
 - ✅ Обновит проект из git (или клонирует, если нет)
-- ✅ Установит все зависимости (Docker, Python пакеты)
+- ✅ Установит все зависимости (Python пакеты, Tor)
 - ✅ Настроит окружение
-- ✅ Запустит сервер
+- ✅ Запустит сервер (БЕЗ Docker - напрямую через Python)
 
 **Подробная инструкция:** [INSTALL.md](INSTALL.md)
 
@@ -145,15 +145,8 @@ Firewall настроит:
 ### Запуск и остановка
 
 ```bash
-# Запуск основных сервисов (рекомендуется)
+# Запуск сервисов (Tor + Flask)
 ./raspberry-run.sh start
-
-# Запуск всех сервисов
-./raspberry-run.sh start-full
-
-# Запуск с дополнительными сервисами
-./raspberry-run.sh start-nginx    # С Nginx
-./raspberry-run.sh start-tools    # С SQLite Web
 
 # Остановка
 ./raspberry-run.sh stop
@@ -170,6 +163,8 @@ Firewall настроит:
 
 # Логи
 ./raspberry-run.sh logs
+./raspberry-run.sh logs flask
+./raspberry-run.sh logs tor
 ./raspberry-run.sh logs interceptor
 
 # Мониторинг ресурсов Raspberry Pi
@@ -259,20 +254,23 @@ systemctl status unattended-upgrades
 ### Обновление приложения
 
 ```bash
-# Обновление Docker образов
-./raspberry-run.sh update
+# Обновление из git
+cd ~/web-interogatter
+git pull origin main
 
-# Пересборка образов
-./raspberry-run.sh build
+# Перезапуск сервисов
+cd raspberry-production
+./raspberry-run.sh restart
 ```
 
 ### Очистка
 
 ```bash
-# Очистка Docker
+# Очистка временных файлов
 ./raspberry-run.sh cleanup
 
 # Очистка старых логов
+find logs -name "*.log.*" -mtime +30 -delete
 sudo find /var/log -name "*.log" -mtime +30 -delete
 ```
 
@@ -280,8 +278,11 @@ sudo find /var/log -name "*.log" -mtime +30 -delete
 
 - **Raspberry Pi 4** (рекомендуется 4GB RAM или больше)
 - **Raspberry Pi OS (64-bit)**
-- **Docker** и **Docker Compose**
+- **Python 3.7+**
+- **Tor**
 - **Стабильное интернет-соединение**
+
+> **Примечание**: Эта версия работает **БЕЗ Docker** - запуск напрямую через Python для лучшей производительности на Raspberry Pi.
 
 ## 🛡️ Рекомендации по безопасности
 
@@ -345,15 +346,18 @@ sudo fail2ban-client set web-interceptor unbanip [IP-адрес]
 # Мониторинг ресурсов
 ./raspberry-run.sh monitor
 
-# Ограничение ресурсов в docker-compose.raspberry.yml
-# Измените значения в секции deploy.resources
+# Проверка процессов
+ps aux | grep -E "tor|app.py"
+
+# Ограничение ресурсов через systemd (если используется)
+# См. документацию по systemd resource limits
 ```
 
 ## 📝 Дополнительная документация
 
 - **Основной README**: `../README.md`
-- **Установка на Raspberry Pi**: `../RASPBERRY_PI_SETUP.md`
-- **Docker документация**: `../DOCKER_AND_LOGGING.md`
+- **Установка на Raspberry Pi**: `../gu/information/RASPBERRY_PI_SETUP.md`
+- **Логирование**: `../gu/information/DOCKER_AND_LOGGING.md` (применимо и без Docker)
 
 ## ⚠️ Важные предупреждения
 
