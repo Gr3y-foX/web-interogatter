@@ -10,6 +10,16 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Защита от рекурсии: проверяем, был ли скрипт вызван из платформенного скрипта
+# Если переменная окружения установлена, значит мы уже в рекурсии - не вызываем платформенный скрипт снова
+if [ -n "$WEB_INTERCEPTOR_NO_RECURSE" ]; then
+    # Скрипт был вызван из платформенного скрипта - это рекурсия!
+    # Используем платформу из переменной окружения и не вызываем платформенный скрипт
+    PLATFORM_FROM_ENV="$WEB_INTERCEPTOR_PLATFORM"
+    unset WEB_INTERCEPTOR_NO_RECURSE
+    unset WEB_INTERCEPTOR_PLATFORM
+fi
+
 # Цвета для вывода
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -78,7 +88,12 @@ detect_platform() {
 }
 
 # Получение платформы
-PLATFORM=$(detect_platform "$@")
+# Если платформа была передана через переменную окружения (защита от рекурсии), используем её
+if [ -n "$PLATFORM_FROM_ENV" ]; then
+    PLATFORM="$PLATFORM_FROM_ENV"
+else
+    PLATFORM=$(detect_platform "$@")
+fi
 
 # Удаление аргументов --platform из списка аргументов
 ARGS=()
@@ -117,9 +132,21 @@ if [ ! -f "$PLATFORM_SCRIPT" ]; then
     exit 1
 fi
 
+# Защита от рекурсии: если платформа была передана через переменную окружения,
+# значит мы уже в рекурсии - не вызываем платформенный скрипт снова
+if [ -n "$PLATFORM_FROM_ENV" ]; then
+    print_error "Обнаружена рекурсия! Платформенный скрипт не должен вызывать корневой скрипт."
+    print_info "Платформа: $PLATFORM_FROM_ENV"
+    print_info "Выполните платформенный скрипт напрямую: $PLATFORM_SCRIPT"
+    exit 1
+fi
+
 # Вывод информации
 print_info "Платформа: $PLATFORM_NAME"
 print_info "Используется скрипт: $PLATFORM_SCRIPT"
 
 # Запуск скрипта платформы
+# Устанавливаем флаг, чтобы платформенный скрипт знал, что он был вызван из корневого
+export WEB_INTERCEPTOR_NO_RECURSE=1
+export WEB_INTERCEPTOR_PLATFORM="$PLATFORM"
 exec bash "$PLATFORM_SCRIPT" "${ARGS[@]}"

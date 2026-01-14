@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Скрипт управления Web Server Interceptor для Raspberry Pi 4
-# Оптимизированная версия docker-run.sh для Raspberry Pi
+# Версия БЕЗ Docker - запуск напрямую через Python
+# Оптимизировано для Raspberry Pi
 
 set -e
 
@@ -18,19 +19,17 @@ BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 NC='\033[0m'
 
-# Определение команды compose
-if docker compose version &> /dev/null; then
-    COMPOSE_CMD="docker compose -f $PROJECT_ROOT/docker-compose.raspberry.yml"
-else
-    COMPOSE_CMD="docker-compose -f $PROJECT_ROOT/docker-compose.raspberry.yml"
-fi
+# PID файлы
+TOR_PID_FILE="/tmp/web-interceptor-tor.pid"
+FLASK_PID_FILE="/tmp/web-interceptor-flask.pid"
+MONITOR_PID_FILE="/tmp/web-interceptor-monitor.pid"
 
 # Функции для красивого вывода
 print_header() {
     echo -e "${PURPLE}"
     echo "🍓 =============================================="
     echo "   Web Server Interceptor - Raspberry Pi Edition"
-    echo "   Управление контейнерами для Raspberry Pi 4"
+    echo "   Версия БЕЗ Docker - Прямой запуск"
     echo "=============================================="
     echo -e "${NC}"
 }
@@ -51,184 +50,234 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-# Проверка Docker
-check_docker() {
-    if ! command -v docker &> /dev/null; then
-        print_error "Docker не установлен"
+# Проверка зависимостей
+check_dependencies() {
+    print_info "Проверка зависимостей..."
+    
+    local missing_deps=()
+    
+    # Проверка Python
+    if ! command -v python3 &> /dev/null; then
+        missing_deps+=("python3")
+    fi
+    
+    # Проверка Tor
+    if ! command -v tor &> /dev/null; then
+        missing_deps+=("tor")
+    fi
+    
+    # Проверка pip пакетов
+    if ! python3 -c "import flask" 2>/dev/null; then
+        missing_deps+=("flask (pip)")
+    fi
+    
+    if ! python3 -c "import stem" 2>/dev/null; then
+        missing_deps+=("stem (pip)")
+    fi
+    
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        print_error "Отсутствуют зависимости: ${missing_deps[*]}"
         print_info "Запустите: ./setup_raspberry.sh"
         exit 1
     fi
     
-    if ! docker info &> /dev/null; then
-        print_error "Docker не запущен или нет прав доступа"
-        print_info "Запустите: sudo systemctl start docker"
-        print_info "Или добавьте пользователя в группу docker: sudo usermod -aG docker $USER"
-        exit 1
-    fi
-    
-    print_success "Docker доступен"
-}
-
-# Проверка файлов конфигурации
-check_config() {
-    if [ ! -f "docker-compose.raspberry.yml" ]; then
-        print_error "Файл docker-compose.raspberry.yml не найден"
-        exit 1
-    fi
-    
-    if [ ! -f "Dockerfile.raspberry" ]; then
-        print_error "Файл Dockerfile.raspberry не найден"
-        exit 1
-    fi
+    print_success "Все зависимости установлены"
 }
 
 # Создание необходимых директорий
 create_directories() {
+    print_info "Создание директорий..."
+    
     mkdir -p data reports logs
-    mkdir -p docker/grafana/{dashboards,datasources} 2>/dev/null || true
+    mkdir -p /tmp/tor_interceptor/hidden_service 2>/dev/null || true
+    mkdir -p /var/lib/tor-interceptor/hidden_service 2>/dev/null || true
+    
+    print_success "Директории созданы"
 }
 
-# Сборка образов
-build_images() {
-    print_info "Сборка Docker образов для Raspberry Pi..."
+# Инициализация базы данных
+init_database() {
+    print_info "Инициализация базы данных..."
     
-    # Включение BuildKit для ускорения сборки
-    export DOCKER_BUILDKIT=1
-    export COMPOSE_DOCKER_CLI_BUILD=1
-    
-    # Опция для использования кэша (быстрее) или без кэша (чистая сборка)
-    local no_cache_flag=""
-    if [ "${2:-}" = "--no-cache" ]; then
-        no_cache_flag="--no-cache"
-        print_warning "Сборка без кэша (займет больше времени)"
+    if [ ! -f "data/intercepts.db" ]; then
+        python3 -c "
+import sys
+sys.path.insert(0, '$PROJECT_ROOT')
+from app import init_db
+init_db()
+" 2>/dev/null && print_success "База данных инициализирована" || print_warning "База данных уже существует"
     else
-        print_info "Использование кэша для ускорения сборки"
-    fi
-    
-    $COMPOSE_CMD build $no_cache_flag
-    
-    print_success "Образы собраны"
-}
-
-# Запуск основных сервисов (рекомендуется для Raspberry Pi)
-start_basic() {
-    print_info "Запуск основных сервисов (оптимизировано для Raspberry Pi)..."
-    
-    # Запускаем только interceptor (Tor уже встроен в него)
-    # tor-relay отключен, так как образ не поддерживает ARM64
-    $COMPOSE_CMD up -d interceptor
-    
-    print_success "Основные сервисы запущены"
-    sleep 5
-    show_urls
-}
-
-# Запуск всех сервисов
-start_full() {
-    print_info "Запуск всех сервисов..."
-    
-    $COMPOSE_CMD up -d
-    
-    print_success "Все сервисы запущены"
-    sleep 5
-    show_urls
-}
-
-# Запуск с дополнительными сервисами
-start_with_profile() {
-    local profile=$1
-    print_info "Запуск с профилем: $profile"
-    
-    $COMPOSE_CMD --profile "$profile" up -d
-    
-    print_success "Сервисы запущены с профилем: $profile"
-    sleep 5
-    show_urls
-}
-
-# Остановка сервисов
-stop_services() {
-    print_info "Остановка сервисов..."
-    
-    $COMPOSE_CMD down
-    
-    print_success "Все сервисы остановлены"
-}
-
-# Показ логов
-show_logs() {
-    local service=${1:-""}
-    
-    if [ -z "$service" ]; then
-        print_info "Показ логов всех сервисов..."
-        $COMPOSE_CMD logs -f --tail=50
-    else
-        print_info "Показ логов сервиса: $service"
-        $COMPOSE_CMD logs -f --tail=50 "$service"
+        print_info "База данных уже существует"
     fi
 }
 
-# Показ статуса
-show_status() {
-    print_info "Статус сервисов:"
-    $COMPOSE_CMD ps
+# Запуск Tor
+start_tor() {
+    print_info "Запуск Tor..."
     
-    echo
-    print_info "Использование ресурсов:"
-    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}" 2>/dev/null || \
-    docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}"
+    # Проверка, не запущен ли уже Tor
+    if [ -f "$TOR_PID_FILE" ]; then
+        TOR_PID=$(cat "$TOR_PID_FILE")
+        if kill -0 "$TOR_PID" 2>/dev/null; then
+            print_warning "Tor уже запущен (PID: $TOR_PID)"
+            return 0
+        fi
+    fi
     
-    echo
-    print_info "Использование диска:"
-    df -h / | tail -1
+    # Запуск Tor через tor_setup.py
+    if python3 tor_setup.py start 2>/dev/null; then
+        # Получение PID Tor процесса
+        sleep 2
+        TOR_PID=$(pgrep -f "tor.*torrc" | head -1)
+        if [ -n "$TOR_PID" ]; then
+            echo "$TOR_PID" > "$TOR_PID_FILE"
+            print_success "Tor запущен (PID: $TOR_PID)"
+            return 0
+        fi
+    fi
+    
+    # Альтернативный способ - прямой запуск Tor
+    print_info "Попытка прямого запуска Tor..."
+    
+    # Создание конфигурации Tor
+    mkdir -p /tmp/tor_interceptor
+    cat > /tmp/tor_interceptor/torrc << EOF
+SocksPort 127.0.0.1:9050
+ControlPort 127.0.0.1:9051
+HashedControlPassword 16:872860B76453A77D60CA2BB8C1A7042072093276A3D701AD684053EC4C
+DataDirectory /tmp/tor_interceptor
+Log notice file /tmp/tor_interceptor/tor.log
+
+# Hidden Service
+HiddenServiceDir /tmp/tor_interceptor/hidden_service/
+HiddenServicePort 80 127.0.0.1:5000
+HiddenServiceVersion 3
+
+# Security settings
+ExitPolicy reject *:*
+ExitRelay 0
+PublishServerDescriptor 0
+EOF
+    
+    # Запуск Tor в фоне
+    tor -f /tmp/tor_interceptor/torrc > /dev/null 2>&1 &
+    TOR_PID=$!
+    echo "$TOR_PID" > "$TOR_PID_FILE"
+    
+    # Ожидание запуска
+    for i in {1..30}; do
+        if netstat -tuln 2>/dev/null | grep -q ":9050 " || ss -tuln 2>/dev/null | grep -q ":9050 "; then
+            print_success "Tor запущен (PID: $TOR_PID)"
+            return 0
+        fi
+        sleep 1
+    done
+    
+    print_error "Не удалось запустить Tor"
+    return 1
 }
 
-# Показ URL адресов
-show_urls() {
-    local IP_ADDRESS=$(hostname -I | awk '{print $1}')
-    
-    echo
-    print_success "🌐 Доступные сервисы:"
-    echo "  📡 Основной сайт:     http://localhost:5000"
-    echo "  📡 Основной сайт:     http://$IP_ADDRESS:5000"
-    echo "  🔧 Админ панель:      http://localhost:5000/admin/reports"
-    echo "  📊 API отчетов:       http://localhost:5000/admin/api/reports"
-    echo
-    
-    # Проверка дополнительных сервисов
-    if docker ps | grep -q sqlite-analyzer-raspberry; then
-        echo "  🗄️  SQLite Web:       http://localhost:8080"
+# Остановка Tor
+stop_tor() {
+    if [ -f "$TOR_PID_FILE" ]; then
+        TOR_PID=$(cat "$TOR_PID_FILE")
+        if kill -0 "$TOR_PID" 2>/dev/null; then
+            kill "$TOR_PID" 2>/dev/null || true
+            print_success "Tor остановлен"
+        fi
+        rm -f "$TOR_PID_FILE"
     fi
     
-    if docker ps | grep -q nginx-interceptor-raspberry; then
-        echo "  🌐 Nginx прокси:      http://localhost:80"
+    # Остановка через tor_setup.py
+    python3 tor_setup.py stop 2>/dev/null || true
+}
+
+# Запуск Flask приложения
+start_flask() {
+    print_info "Запуск Flask приложения..."
+    
+    # Проверка, не запущен ли уже Flask
+    if [ -f "$FLASK_PID_FILE" ]; then
+        FLASK_PID=$(cat "$FLASK_PID_FILE")
+        if kill -0 "$FLASK_PID" 2>/dev/null; then
+            print_warning "Flask уже запущен (PID: $FLASK_PID)"
+            return 0
+        fi
     fi
     
-    echo
-    print_info "🧅 Tor SOCKS прокси: 127.0.0.1:9050"
-    print_info "🎛️  Tor Control:      127.0.0.1:9051"
+    # Установка переменных окружения
+    export FLASK_APP=app.py
+    export FLASK_ENV=production
+    export DATABASE_PATH="$PROJECT_ROOT/data/intercepts.db"
     
-    # Попытка получить .onion адрес
-    if docker exec web-interceptor-raspberry test -f /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null; then
-        ONION_ADDR=$(docker exec web-interceptor-raspberry cat /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null)
-        print_success "🧅 Hidden Service: http://$ONION_ADDR"
-    else
-        print_warning "🧅 Hidden Service еще не готов (подождите ~60-90 секунд)"
-        print_info "   Выполните: ./raspberry-run.sh onion"
+    # Запуск Flask в фоне
+    cd "$PROJECT_ROOT"
+    nohup python3 app.py > logs/flask.log 2>&1 &
+    FLASK_PID=$!
+    echo "$FLASK_PID" > "$FLASK_PID_FILE"
+    
+    # Ожидание запуска
+    for i in {1..20}; do
+        if netstat -tuln 2>/dev/null | grep -q ":5000 " || ss -tuln 2>/dev/null | grep -q ":5000 "; then
+            print_success "Flask запущен (PID: $FLASK_PID)"
+            return 0
+        fi
+        sleep 1
+    done
+    
+    print_error "Не удалось запустить Flask приложение"
+    return 1
+}
+
+# Остановка Flask
+stop_flask() {
+    if [ -f "$FLASK_PID_FILE" ]; then
+        FLASK_PID=$(cat "$FLASK_PID_FILE")
+        if kill -0 "$FLASK_PID" 2>/dev/null; then
+            kill "$FLASK_PID" 2>/dev/null || true
+            print_success "Flask остановлен"
+        fi
+        rm -f "$FLASK_PID_FILE"
     fi
+    
+    # Дополнительная проверка и остановка всех процессов app.py
+    pkill -f "python3.*app.py" 2>/dev/null || true
 }
 
 # Получение .onion адреса
 get_onion() {
     print_info "Получение .onion адреса..."
     
-    for i in {1..45}; do
-        if docker exec web-interceptor-raspberry test -f /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null; then
-            ONION_ADDR=$(docker exec web-interceptor-raspberry cat /var/lib/tor-interceptor/hidden_service/hostname 2>/dev/null)
-            print_success "🧅 Hidden Service: http://$ONION_ADDR"
-            echo "$ONION_ADDR" > data/onion_address.txt
-            return 0
+    # Проверка различных путей
+    ONION_PATHS=(
+        "/tmp/tor_interceptor/hidden_service/hostname"
+        "/var/lib/tor-interceptor/hidden_service/hostname"
+        "data/onion_address.txt"
+    )
+    
+    for path in "${ONION_PATHS[@]}"; do
+        if [ -f "$path" ]; then
+            ONION_ADDR=$(cat "$path" 2>/dev/null | head -1)
+            if [ -n "$ONION_ADDR" ] && [[ "$ONION_ADDR" == *.onion ]]; then
+                print_success "🧅 Hidden Service: http://$ONION_ADDR"
+                echo "$ONION_ADDR" > data/onion_address.txt
+                return 0
+            fi
         fi
+    done
+    
+    # Ожидание создания hidden service
+    for i in {1..45}; do
+        for path in "${ONION_PATHS[@]}"; do
+            if [ -f "$path" ]; then
+                ONION_ADDR=$(cat "$path" 2>/dev/null | head -1)
+                if [ -n "$ONION_ADDR" ] && [[ "$ONION_ADDR" == *.onion ]]; then
+                    print_success "🧅 Hidden Service: http://$ONION_ADDR"
+                    echo "$ONION_ADDR" > data/onion_address.txt
+                    return 0
+                fi
+            fi
+        done
         echo -n "."
         sleep 2
     done
@@ -242,44 +291,115 @@ get_onion() {
 new_tor_identity() {
     print_info "Смена Tor идентичности..."
     
-    if docker exec web-interceptor-raspberry python3 tor_setup.py newip 2>/dev/null; then
+    if python3 tor_setup.py newip 2>/dev/null; then
         print_success "Tor идентичность изменена"
     else
         print_error "Не удалось изменить Tor идентичность"
     fi
 }
 
-# Интерактивная оболочка
-shell() {
-    local service=${1:-"interceptor"}
-    print_info "Запуск интерактивной оболочки в контейнере: $service"
+# Показ URL адресов
+show_urls() {
+    local IP_ADDRESS=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "localhost")
     
-    if [ "$service" = "interceptor" ]; then
-        docker exec -it web-interceptor-raspberry /bin/bash
+    echo
+    print_success "🌐 Доступные сервисы:"
+    echo "  📡 Основной сайт:     http://localhost:5000"
+    echo "  📡 Основной сайт:     http://$IP_ADDRESS:5000"
+    echo "  🔧 Админ панель:      http://localhost:5000/admin/reports"
+    echo "  📊 API отчетов:       http://localhost:5000/admin/api/reports"
+    echo "  🎭 Маскировочный сайт: http://localhost:5000/mask"
+    echo "  📊 Страница перехвата: http://localhost:5000/intercept"
+    echo
+    print_info "🧅 Tor SOCKS прокси: 127.0.0.1:9050"
+    print_info "🎛️  Tor Control:      127.0.0.1:9051"
+    
+    # Попытка получить .onion адрес
+    if [ -f "/tmp/tor_interceptor/hidden_service/hostname" ] || \
+       [ -f "/var/lib/tor-interceptor/hidden_service/hostname" ] || \
+       [ -f "data/onion_address.txt" ]; then
+        get_onion
     else
-        print_error "Сервис $service не найден"
+        print_warning "🧅 Hidden Service еще не готов (подождите ~60-90 секунд)"
+        print_info "   Выполните: ./raspberry-run.sh onion"
     fi
+    echo
 }
 
-# Экспорт данных
-export_data() {
-    print_info "Экспорт данных из контейнера..."
+# Показ статуса
+show_status() {
+    print_info "Статус сервисов:"
+    echo
     
-    local export_dir="./exported_data_$(date +%Y%m%d_%H%M%S)"
-    mkdir -p "$export_dir"
-    
-    # Экспорт базы данных
-    if docker exec web-interceptor-raspberry test -f /app/data/intercepts.db 2>/dev/null; then
-        docker cp web-interceptor-raspberry:/app/data/intercepts.db "$export_dir/" 2>/dev/null || true
+    # Статус Tor
+    if [ -f "$TOR_PID_FILE" ]; then
+        TOR_PID=$(cat "$TOR_PID_FILE")
+        if kill -0 "$TOR_PID" 2>/dev/null; then
+            print_success "Tor: запущен (PID: $TOR_PID)"
+        else
+            print_error "Tor: не запущен (PID файл устарел)"
+        fi
+    else
+        if pgrep -f "tor.*torrc" > /dev/null; then
+            print_warning "Tor: запущен (без PID файла)"
+        else
+            print_error "Tor: не запущен"
+        fi
     fi
     
-    # Экспорт отчетов
-    docker cp web-interceptor-raspberry:/app/reports/ "$export_dir/" 2>/dev/null || true
+    # Статус Flask
+    if [ -f "$FLASK_PID_FILE" ]; then
+        FLASK_PID=$(cat "$FLASK_PID_FILE")
+        if kill -0 "$FLASK_PID" 2>/dev/null; then
+            print_success "Flask: запущен (PID: $FLASK_PID)"
+        else
+            print_error "Flask: не запущен (PID файл устарел)"
+        fi
+    else
+        if pgrep -f "python3.*app.py" > /dev/null; then
+            print_warning "Flask: запущен (без PID файла)"
+        else
+            print_error "Flask: не запущен"
+        fi
+    fi
     
-    # Экспорт логов
-    docker cp web-interceptor-raspberry:/app/logs/ "$export_dir/" 2>/dev/null || true
+    echo
+    print_info "Использование ресурсов:"
+    if command -v vcgencmd &> /dev/null; then
+        echo "  Температура CPU: $(vcgencmd measure_temp 2>/dev/null | cut -d= -f2 || echo 'N/A')"
+    fi
+    free -h | grep -E "^Mem|^Swap" | awk '{print "  " $1 ": " $3 "/" $2 " (" $5 ")"}'
     
-    print_success "Данные экспортированы в: $export_dir"
+    echo
+    print_info "Использование диска:"
+    df -h / | tail -1 | awk '{print "  Root: " $3 "/" $2 " (" $5 " использовано)"}'
+}
+
+# Показ логов
+show_logs() {
+    local service=${1:-""}
+    
+    if [ -z "$service" ]; then
+        print_info "Показ последних логов..."
+        echo
+        echo "=== Flask лог ==="
+        tail -n 20 logs/flask.log 2>/dev/null || echo "Лог Flask не найден"
+        echo
+        echo "=== Tor лог ==="
+        tail -n 20 /tmp/tor_interceptor/tor.log 2>/dev/null || echo "Лог Tor не найден"
+        echo
+        echo "=== Interceptor лог ==="
+        tail -n 20 logs/interceptor.log 2>/dev/null || echo "Лог Interceptor не найден"
+    elif [ "$service" = "flask" ]; then
+        tail -f logs/flask.log
+    elif [ "$service" = "tor" ]; then
+        tail -f /tmp/tor_interceptor/tor.log
+    elif [ "$service" = "interceptor" ]; then
+        tail -f logs/interceptor.log
+    else
+        print_error "Неизвестный сервис: $service"
+        print_info "Доступные: flask, tor, interceptor"
+    fi
 }
 
 # Мониторинг ресурсов
@@ -303,99 +423,64 @@ monitor_resources() {
     df -h /
     
     echo
-    print_info "Статус Docker контейнеров:"
-    docker stats --no-stream
+    print_info "Процессы приложения:"
+    ps aux | grep -E "tor|app.py" | grep -v grep || echo "Процессы не найдены"
 }
 
 # Очистка
 cleanup() {
-    print_warning "Полная очистка Docker окружения..."
-    read -p "Удалить все контейнеры, образы и данные? (y/N): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        $COMPOSE_CMD down -v --rmi all --remove-orphans
-        docker system prune -a -f
-        print_success "Очистка завершена"
-    else
-        print_info "Очистка отменена"
-    fi
+    print_warning "Очистка временных файлов..."
+    
+    # Остановка сервисов
+    stop_flask
+    stop_tor
+    
+    # Удаление PID файлов
+    rm -f "$TOR_PID_FILE" "$FLASK_PID_FILE" "$MONITOR_PID_FILE"
+    
+    print_success "Очистка завершена"
 }
 
 # Основная функция
 main() {
-    print_header
-    
     case "${1:-help}" in
         "start"|"up")
-            check_docker
-            check_config
+            print_header
+            check_dependencies
             create_directories
-            start_basic
-            ;;
-            
-        "start-full")
-            check_docker
-            check_config
-            create_directories
-            start_full
-            ;;
-            
-        "start-nginx")
-            check_docker
-            check_config
-            create_directories
-            start_with_profile "nginx"
-            ;;
-            
-        "start-tools")
-            check_docker
-            check_config
-            create_directories
-            start_with_profile "tools"
+            init_database
+            start_tor
+            sleep 3
+            start_flask
+            sleep 2
+            show_urls
             ;;
             
         "stop"|"down")
-            check_docker
-            stop_services
+            print_header
+            stop_flask
+            stop_tor
+            cleanup
             ;;
             
         "restart")
-            check_docker
-            stop_services
+            print_header
+            stop_flask
+            stop_tor
             sleep 2
-            start_basic
-            ;;
-            
-        "build")
-            check_docker
-            check_config
-            create_directories
-            build_images "$@"
-            ;;
-            
-        "build-no-cache")
-            check_docker
-            check_config
-            create_directories
-            build_images "$@" "--no-cache"
-            ;;
-            
-        "fix-build")
-            print_info "Запуск скрипта исправления проблем сборки..."
-            if [ -f "$SCRIPT_DIR/fix_docker_build.sh" ]; then
-                bash "$SCRIPT_DIR/fix_docker_build.sh"
-            else
-                print_error "Скрипт fix_docker_build.sh не найден"
-            fi
+            start_tor
+            sleep 3
+            start_flask
+            sleep 2
+            show_urls
             ;;
             
         "status"|"ps")
-            check_docker
+            print_header
             show_status
             ;;
             
         "logs")
-            check_docker
             show_logs "${2}"
             ;;
             
@@ -404,23 +489,11 @@ main() {
             ;;
             
         "onion")
-            check_docker
             get_onion
             ;;
             
         "newip")
-            check_docker
             new_tor_identity
-            ;;
-            
-        "shell")
-            check_docker
-            shell "${2}"
-            ;;
-            
-        "export")
-            check_docker
-            export_data
             ;;
             
         "monitor")
@@ -428,27 +501,20 @@ main() {
             ;;
             
         "cleanup")
-            check_docker
             cleanup
             ;;
             
         "help"|*)
-            echo "🍓 Web Server Interceptor - Raspberry Pi Management"
+            echo "🍓 Web Server Interceptor - Raspberry Pi Management (БЕЗ Docker)"
             echo
             echo "Основные команды:"
-            echo "  start, up          - Запуск основных сервисов (рекомендуется)"
-            echo "  start-full         - Запуск всех сервисов"
-            echo "  start-nginx        - Запуск с Nginx прокси"
-            echo "  start-tools        - Запуск с SQLite Web"
+            echo "  start, up          - Запуск сервисов"
             echo "  stop, down         - Остановка сервисов"
             echo "  restart            - Перезапуск сервисов"
-            echo "  build              - Сборка образов (с кэшем)"
-            echo "  build-no-cache     - Сборка образов без кэша"
-            echo "  fix-build          - Исправить проблемы сборки"
             echo
             echo "Мониторинг:"
-            echo "  status, ps         - Статус контейнеров"
-            echo "  logs [service]     - Просмотр логов"
+            echo "  status, ps         - Статус сервисов"
+            echo "  logs [service]     - Просмотр логов (flask, tor, interceptor)"
             echo "  urls               - Показать URL адреса"
             echo "  monitor            - Мониторинг ресурсов Raspberry Pi"
             echo
@@ -457,13 +523,11 @@ main() {
             echo "  newip              - Сменить Tor идентичность"
             echo
             echo "Утилиты:"
-            echo "  shell [service]    - Интерактивная оболочка"
-            echo "  export             - Экспорт данных"
-            echo "  cleanup            - Полная очистка"
+            echo "  cleanup            - Очистка временных файлов"
             echo
             echo "Примеры:"
             echo "  ./raspberry-run.sh start"
-            echo "  ./raspberry-run.sh logs interceptor"
+            echo "  ./raspberry-run.sh logs flask"
             echo "  ./raspberry-run.sh monitor"
             ;;
     esac
@@ -474,4 +538,3 @@ trap 'print_warning "Прерывание скрипта"; exit 0' INT TERM
 
 # Запуск основной функции
 main "$@"
-
