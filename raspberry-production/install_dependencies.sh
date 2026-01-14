@@ -51,12 +51,18 @@ echo -e "${BLUE}ℹ️  Установка Python пакетов из requiremen
 # Попытка установки без флагов
 if python3 -m pip install -r requirements.txt 2>/dev/null; then
     echo -e "${GREEN}✅ Зависимости установлены успешно${NC}"
-# Если не получилось, используем --break-system-packages (нормально для Raspberry Pi)
-elif python3 -m pip install --break-system-packages -r requirements.txt; then
+# Если не получилось, используем --break-system-packages и --ignore-installed
+elif python3 -m pip install --break-system-packages --ignore-installed -r requirements.txt; then
     echo -e "${GREEN}✅ Зависимости установлены с флагом --break-system-packages${NC}"
 else
-    echo -e "${RED}❌ Не удалось установить зависимости${NC}"
-    exit 1
+    # Последняя попытка с force-reinstall
+    echo -e "${BLUE}ℹ️  Попытка принудительной переустановки...${NC}"
+    if python3 -m pip install --break-system-packages --upgrade --force-reinstall --no-deps -r requirements.txt; then
+        echo -e "${GREEN}✅ Зависимости установлены с принудительной переустановкой${NC}"
+    else
+        echo -e "${RED}❌ Не удалось установить зависимости${NC}"
+        exit 1
+    fi
 fi
 
 echo
