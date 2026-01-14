@@ -25,10 +25,14 @@ if [ ! -f "requirements.txt" ]; then
     exit 1
 fi
 
-# Обновление pip
-echo -e "${BLUE}ℹ️  Обновление pip...${NC}"
-python3 -m pip install --upgrade pip 2>/dev/null || \
-    python3 -m pip install --break-system-packages --upgrade pip
+# Обновление pip (пропускаем, если не получается из-за системного пакета)
+echo -e "${BLUE}ℹ️  Проверка pip...${NC}"
+if python3 -m pip --version &>/dev/null; then
+    echo -e "${GREEN}✅ pip доступен${NC}"
+else
+    echo -e "${RED}❌ pip не найден${NC}"
+    exit 1
+fi
 
 # Установка системных зависимостей
 echo -e "${BLUE}ℹ️  Установка системных зависимостей...${NC}"
