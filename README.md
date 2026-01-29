@@ -24,7 +24,7 @@ Web server interceptor for collecting client information with Tor anonymization.
 From the project root:
 
 ```bash
-git clone <your-repo-url>
+git https://github.com/Gr3y-foX/web-interogatter
 cd web-server-intercepter
 
 ./docker-build-and-run.sh
