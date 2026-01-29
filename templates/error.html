@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ошибка сервера - 500</title>
+    <title>Server Error - 500</title>
     <style>
         * {
             margin: 0;
@@ -147,41 +147,39 @@
 <body>
     <div class="error-container">
         <div class="error-code">500</div>
-        <h1 class="error-title">Внутренняя ошибка сервера</h1>
+        <h1 class="error-title">Internal Server Error</h1>
         <p class="error-message">
-            Извините, произошла непредвиденная ошибка на сервере. 
-            Наши специалисты уже работают над решением проблемы.
+            Sorry, an unexpected error occurred on the server. 
+            Our team is already working to resolve the issue.
         </p>
         
         <div class="error-details">
-            <h3>Технические детали:</h3>
-            <p><strong>Код ошибки:</strong> HTTP 500 Internal Server Error</p>
-            <p><strong>Время:</strong> <span id="current-time"></span></p>
-            <p><strong>Сервер:</strong> Apache/2.4.41 (Ubuntu)</p>
-            <p><strong>ID запроса:</strong> <span id="request-id"></span></p>
+            <h3>Technical details:</h3>
+            <p><strong>Error code:</strong> HTTP 500 Internal Server Error</p>
+            <p><strong>Time:</strong> <span id="current-time"></span></p>
+            <p><strong>Server:</strong> Apache/2.4.41 (Ubuntu)</p>
+            <p><strong>Request ID:</strong> <span id="request-id"></span></p>
         </div>
         
         <div class="loading-animation">
             <div class="spinner"></div>
-            <p style="margin-top: 10px; color: #666;">Попытка автоматического восстановления...</p>
+            <p style="margin-top: 10px; color: #666;">Attempting automatic recovery...</p>
         </div>
         
-        <a href="/" class="btn-home">Вернуться на главную</a>
+        <a href="/" class="btn-home">Back to Home</a>
         
         <div class="footer">
-            <p>Если проблема повторяется, обратитесь к администратору сайта</p>
-            <p>Код поддержки: ERR_500_<span id="support-code"></span></p>
+            <p>If the problem persists, please contact the site administrator</p>
+            <p>Support code: ERR_500_<span id="support-code"></span></p>
         </div>
     </div>
 
     <script>
-        // Обновление времени
         function updateTime() {
             const now = new Date();
-            document.getElementById('current-time').textContent = now.toLocaleString('ru-RU');
+            document.getElementById('current-time').textContent = now.toLocaleString('en-US');
         }
         
-        // Генерация случайного ID запроса
         function generateRequestId() {
             const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
             let result = '';
@@ -191,29 +189,24 @@
             return result;
         }
         
-        // Генерация кода поддержки
         function generateSupportCode() {
             return Math.random().toString(36).substr(2, 6).toUpperCase();
         }
         
-        // Инициализация
         updateTime();
         document.getElementById('request-id').textContent = generateRequestId();
         document.getElementById('support-code').textContent = generateSupportCode();
         
-        // Обновление времени каждую секунду
         setInterval(updateTime, 1000);
         
-        // Имитация попытки восстановления
         setTimeout(function() {
             const spinner = document.querySelector('.spinner');
             const loadingText = document.querySelector('.loading-animation p');
             spinner.style.display = 'none';
-            loadingText.textContent = 'Восстановление не удалось. Попробуйте позже.';
+            loadingText.textContent = 'Recovery failed. Please try again later.';
             loadingText.style.color = '#e74c3c';
         }, 5000);
         
-        // Сбор дополнительной информации о браузере (для демонстрации)
         console.log('Browser Info:', {
             userAgent: navigator.userAgent,
             language: navigator.language,

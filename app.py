@@ -558,13 +558,14 @@ def log_response(response):
 
 @app.route('/')
 def index():
-    """Главная страница - маскировочный сайт или перехват"""
-    # Проверяем параметр для выбора режима
-    mode = request.args.get('mode', 'mask')  # mask или intercept
+    """Main page - mask site or intercept (English by default)"""
+    mode = request.args.get('mode', 'mask')  # mask or intercept
     
     if mode == 'mask':
-        # Показываем маскировочный сайт
-        return render_template('mask_site.html'), 200
+        # Show mask site (root = English)
+        lang = get_locale()
+        template_path = f'{lang}/mask_site.html' if lang == 'ru' else 'mask_site.html'
+        return render_template(template_path), 200
     else:
         # Прямой перехват
         client_info = get_client_info(request)
@@ -581,7 +582,8 @@ def intercept_page():
     
     lang = get_locale()
     locale = load_locale(lang)
-    template_path = f'{lang}/caught_report.html' if lang != 'en' else 'en/caught_report.html'
+    # Используем локализованный шаблон если он существует, иначе основной
+    template_path = f'{lang}/caught_report.html' if lang == 'ru' else 'caught_report.html'
     
     # Pass data to report template
     return render_template(template_path, 
@@ -596,7 +598,8 @@ def mask_site():
     threading.Thread(target=save_intercept, args=(client_info,)).start()
     
     lang = get_locale()
-    template_path = f'{lang}/mask_site.html' if lang != 'en' else 'en/mask_site.html'
+    # English (default) = root template, Russian = ru/
+    template_path = f'{lang}/mask_site.html' if lang == 'ru' else 'mask_site.html'
     
     return render_template(template_path), 200
 

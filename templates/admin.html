@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Административная панель - Interceptor</title>
+    <title>Admin Panel - Interceptor</title>
     <style>
         * {
             margin: 0;
@@ -263,7 +263,7 @@
     <div class="header">
         <div class="container">
             <h1>🔍 Web Server Interceptor</h1>
-            <p>Административная панель для мониторинга перехваченных запросов</p>
+            <p>Admin panel for monitoring intercepted requests</p>
         </div>
     </div>
     
@@ -271,48 +271,48 @@
         <div class="stats">
             <div class="stat-card">
                 <div class="stat-number" id="total-intercepts">{{ reports|length }}</div>
-                <div class="stat-label">Всего перехвачено</div>
+                <div class="stat-label">Total Intercepted</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="unique-ips">{{ reports|map(attribute=2)|unique|list|length }}</div>
-                <div class="stat-label">Уникальных IP</div>
+                <div class="stat-label">Unique IPs</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="today-intercepts">0</div>
-                <div class="stat-label">Сегодня</div>
+                <div class="stat-label">Today</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="last-hour">0</div>
-                <div class="stat-label">За последний час</div>
+                <div class="stat-label">Last Hour</div>
             </div>
         </div>
         
         <div class="controls">
             <div>
                 <button class="btn btn-primary" onclick="refreshData()">
-                    🔄 Обновить данные
+                    🔄 Refresh Data
                 </button>
-                <span class="refresh-indicator" id="refresh-indicator">Обновление...</span>
+                <span class="refresh-indicator" id="refresh-indicator">Refreshing...</span>
             </div>
             <div>
                 <button class="btn btn-success" onclick="exportData()">
-                    📊 Экспорт данных
+                    📊 Export Data
                 </button>
                 <a href="/admin/api/reports" class="btn btn-primary" target="_blank">
                     📋 API JSON
                 </a>
                 <button class="btn btn-danger" onclick="clearData()">
-                    🗑️ Очистить данные
+                    🗑️ Clear Data
                 </button>
             </div>
         </div>
         
         <div class="reports-table">
             <div class="table-header">
-                <h2>Перехваченные запросы</h2>
+                <h2>Intercepted Requests</h2>
                 <div class="filter-container">
-                    <input type="text" class="filter-input" id="ip-filter" placeholder="Фильтр по IP...">
-                    <input type="text" class="filter-input" id="browser-filter" placeholder="Фильтр по браузеру...">
+                    <input type="text" class="filter-input" id="ip-filter" placeholder="Filter by IP...">
+                    <input type="text" class="filter-input" id="browser-filter" placeholder="Filter by browser...">
                     <input type="date" class="filter-input" id="date-filter">
                 </div>
             </div>
@@ -321,15 +321,15 @@
                     <thead>
                         <tr>
                             <th>ID</th>
-                            <th>Время</th>
-                            <th>IP Адрес</th>
-                            <th>Браузер</th>
-                            <th>ОС</th>
-                            <th>Устройство</th>
-                            <th>Реферер</th>
-                            <th>Язык</th>
-                            <th>Метод</th>
-                            <th>Путь</th>
+                            <th>Time</th>
+                            <th>IP Address</th>
+                            <th>Browser</th>
+                            <th>OS</th>
+                            <th>Device</th>
+                            <th>Referer</th>
+                            <th>Language</th>
+                            <th>Method</th>
+                            <th>Path</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -351,7 +351,7 @@
                         {% else %}
                             <tr>
                                 <td colspan="10" class="no-data">
-                                    Пока нет перехваченных запросов
+                                    No intercepted requests yet
                                 </td>
                             </tr>
                         {% endif %}
@@ -362,7 +362,6 @@
     </div>
 
     <script>
-        // Обновление статистики
         function updateStats() {
             const rows = document.querySelectorAll('#reports-table tbody tr');
             const now = new Date();
@@ -385,36 +384,31 @@
             document.getElementById('last-hour').textContent = lastHourCount;
         }
         
-        // Обновление данных
         async function refreshData() {
             const indicator = document.getElementById('refresh-indicator');
             indicator.style.display = 'inline';
             
             try {
-                // Здесь можно добавить AJAX запрос для обновления данных
                 setTimeout(() => {
                     location.reload();
                 }, 1000);
             } catch (error) {
-                console.error('Ошибка обновления данных:', error);
-                indicator.textContent = 'Ошибка обновления';
+                console.error('Refresh error:', error);
+                indicator.textContent = 'Refresh failed';
                 setTimeout(() => {
                     indicator.style.display = 'none';
-                    indicator.textContent = 'Обновление...';
+                    indicator.textContent = 'Refreshing...';
                 }, 3000);
             }
         }
         
-        // Экспорт данных
         function exportData() {
             const table = document.getElementById('reports-table');
             let csv = '';
             
-            // Заголовки
             const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent);
             csv += headers.join(',') + '\n';
             
-            // Данные
             const rows = table.querySelectorAll('tbody tr');
             rows.forEach(row => {
                 const cells = Array.from(row.querySelectorAll('td')).map(td => {
@@ -423,7 +417,6 @@
                 csv += cells.join(',') + '\n';
             });
             
-            // Скачивание
             const blob = new Blob([csv], { type: 'text/csv' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -435,15 +428,12 @@
             window.URL.revokeObjectURL(url);
         }
         
-        // Очистка данных
         function clearData() {
-            if (confirm('Вы уверены, что хотите очистить все данные? Это действие нельзя отменить.')) {
-                // Здесь можно добавить AJAX запрос для очистки данных
-                alert('Функция очистки данных пока не реализована для безопасности.');
+            if (confirm('Are you sure you want to clear all data? This action cannot be undone.')) {
+                alert('Data clear function is not implemented for security reasons.');
             }
         }
         
-        // Фильтрация таблицы
         function setupFilters() {
             const ipFilter = document.getElementById('ip-filter');
             const browserFilter = document.getElementById('browser-filter');
@@ -459,7 +449,7 @@
                     const ip = row.cells[2]?.textContent.toLowerCase() || '';
                     const browser = row.cells[3]?.textContent.toLowerCase() || '';
                     const timestamp = row.cells[1]?.textContent || '';
-                    const date = timestamp.split('T')[0]; // Извлекаем дату
+                    const date = timestamp.split('T')[0];
                     
                     const ipMatch = !ipValue || ip.includes(ipValue);
                     const browserMatch = !browserValue || browser.includes(browserValue);
@@ -474,21 +464,15 @@
             dateFilter.addEventListener('change', filterTable);
         }
         
-        // Инициализация
         document.addEventListener('DOMContentLoaded', function() {
             updateStats();
             setupFilters();
-            
-            // Автообновление каждые 30 секунд
             setInterval(updateStats, 30000);
         });
         
-        // Обновление времени в реальном времени
         setInterval(() => {
             const timestamps = document.querySelectorAll('.timestamp');
-            timestamps.forEach(ts => {
-                // Можно добавить относительное время (например, "5 минут назад")
-            });
+            timestamps.forEach(ts => {});
         }, 60000);
     </script>
 </body>

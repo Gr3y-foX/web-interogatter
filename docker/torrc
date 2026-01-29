@@ -1,9 +1,12 @@
+# =============================================================================
 # Tor Configuration for Web Server Interceptor Docker Container
+# Оптимизирован для безопасности и производительности
+# =============================================================================
 
-# SOCKS прокси
+# SOCKS прокси (доступен только внутри контейнера для безопасности)
 SocksPort 0.0.0.0:9050
 
-# Control порт
+# Control порт (доступен только внутри контейнера)
 ControlPort 0.0.0.0:9051
 HashedControlPassword 16:872860B76453A77D60CA2BB8C1A7042072093276A3D701AD684053EC4C
 
@@ -16,36 +19,61 @@ HiddenServiceDir /var/lib/tor-interceptor/hidden_service/
 HiddenServicePort 80 127.0.0.1:5000
 HiddenServiceVersion 3
 
+# =============================================================================
 # Настройки безопасности
+# =============================================================================
+
+# Не быть exit node (только клиент)
 ExitPolicy reject *:*
 ExitRelay 0
+
+# Не публиковать информацию о ноде
 PublishServerDescriptor 0
 
-# Настройки производительности
-NumCPUs 2
-MaxCircuitDirtiness 600
-NewCircuitPeriod 30
-MaxClientCircuitsPending 32
-
-# Дополнительные настройки для Docker
-RunAsDaemon 0
-PidFile /tmp/tor.pid
-
-# Настройки подключений
-SocksTimeout 30
-ClientTransportPlugin obfs4 exec /usr/bin/obfs4proxy
-
-# Исключение определенных стран (опционально)
-# ExcludeExitNodes {us},{ca},{au},{nz},{gb}
-# StrictNodes 1
+# Отключение статистики для приватности  
+# DisableStatistics не поддерживается в Tor 0.4.5.x
+DirReqStatistics 0
+EntryStatistics 0
+ExitPortStatistics 0
 
 # Настройки для улучшения анонимности
 EnforceDistinctSubnets 1
 FascistFirewall 0
 UseBridges 0
 
-# Отключение статистики
-DisableStatistics 1
-DirReqStatistics 0
-EntryStatistics 0
-ExitPortStatistics 0
+# =============================================================================
+# Настройки производительности
+# =============================================================================
+
+# Настройки цепей
+MaxCircuitDirtiness 600
+NewCircuitPeriod 30
+
+# Таймауты
+SocksTimeout 30
+CircuitBuildTimeout 60
+
+# =============================================================================
+# Настройки для Docker
+# =============================================================================
+
+# Не запускаться как демон (Docker управляет процессом)
+RunAsDaemon 0
+
+# PID файл
+PidFile /tmp/tor.pid
+
+# Sandbox отключен автоматически в Docker окружении
+
+# =============================================================================
+# Опциональные настройки (раскомментируйте при необходимости)
+# =============================================================================
+
+# Исключение определенных стран для exit nodes
+# ExcludeExitNodes {us},{ca},{au},{nz},{gb}
+# StrictNodes 1
+
+# Использование мостов для обхода блокировок
+# UseBridges 1
+# ClientTransportPlugin obfs4 exec /usr/bin/obfs4proxy
+# Bridge obfs4 [IP:PORT] [FINGERPRINT]

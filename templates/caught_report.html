@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚠️ Обнаружена подозрительная активность</title>
+    <title>⚠️ Suspicious Activity Detected</title>
     <style>
         * {
             margin: 0;
@@ -19,7 +19,6 @@
             position: relative;
         }
         
-        /* Эффект матрицы на фоне */
         .matrix-bg {
             position: fixed;
             top: 0;
@@ -212,7 +211,7 @@
         <div class="timestamp" id="timestamp"></div>
         
         <div class="header">
-            <h1>⚠️ ПЕРЕХВАТ АКТИВНОСТИ</h1>
+            <h1>⚠️ ACTIVITY INTERCEPTED</h1>
             <div class="subtitle">[SECURITY ALERT - UNAUTHORIZED ACCESS DETECTED]</div>
         </div>
         
@@ -227,112 +226,109 @@
         
         <div class="report-box">
             <div class="warning-box">
-                <h3>🚨 ВНИМАНИЕ: ВАША АКТИВНОСТЬ БЫЛА ЗАФИКСИРОВАНА</h3>
+                <h3>🚨 WARNING: YOUR ACTIVITY HAS BEEN RECORDED</h3>
                 <p>
-                    Система безопасности обнаружила подозрительную активность с вашего устройства. 
-                    Все данные о вашем подключении были записаны и переданы в службу безопасности.
+                    The security system has detected suspicious activity from your device. 
+                    All connection data has been logged and forwarded to the security service.
                 </p>
             </div>
             
             <div class="report-section">
-                <h2>📊 ОТЧЕТ О ПЕРЕХВАТЕ</h2>
+                <h2>📊 INTERCEPT REPORT</h2>
                 
                 <div class="info-row">
-                    <span class="info-label">Время перехвата:</span>
+                    <span class="info-label">Intercept Time:</span>
                     <span class="info-value" id="intercept-time"></span>
                 </div>
                 
                 <div class="info-row">
-                    <span class="info-label">IP Адрес:</span>
+                    <span class="info-label">IP Address:</span>
                     <span class="info-value" id="ip-address"></span>
                 </div>
                 
                 <div class="info-row">
-                    <span class="info-label">Браузер:</span>
+                    <span class="info-label">Browser:</span>
                     <span class="info-value" id="browser"></span>
                 </div>
                 
                 <div class="info-row">
-                    <span class="info-label">Операционная система:</span>
+                    <span class="info-label">Operating System:</span>
                     <span class="info-value" id="os"></span>
                 </div>
                 
                 <div class="info-row">
-                    <span class="info-label">Устройство:</span>
+                    <span class="info-label">Device:</span>
                     <span class="info-value" id="device"></span>
                 </div>
                 
                 <div class="info-row">
-                    <span class="info-label">Язык:</span>
+                    <span class="info-label">Language:</span>
                     <span class="info-value" id="language"></span>
                 </div>
                 
                 <div class="info-row">
-                    <span class="info-label">Реферер:</span>
+                    <span class="info-label">Referer:</span>
                     <span class="info-value" id="referer"></span>
                 </div>
             </div>
             
             <div class="report-section">
-                <h2>🔐 ЦИФРОВОЙ ОТПЕЧАТОК</h2>
+                <h2>🔐 DIGITAL FINGERPRINT</h2>
                 <p style="color: #888; margin-bottom: 1rem;">
-                    Уникальный идентификатор вашего браузера:
+                    Unique browser identifier:
                 </p>
                 <div class="fingerprint" id="fingerprint"></div>
                 <p style="color: #888; margin-top: 1rem; font-size: 0.9rem;">
-                    Этот отпечаток позволяет идентифицировать вас даже при смене IP адреса.
+                    This fingerprint can identify you even when your IP address changes.
                 </p>
             </div>
             
             <div class="report-section">
-                <h2>📈 СТАТУС АНАЛИЗА</h2>
-                <p style="color: #888; margin-bottom: 1rem;">Обработка данных...</p>
+                <h2>📈 ANALYSIS STATUS</h2>
+                <p style="color: #888; margin-bottom: 1rem;">Processing data...</p>
                 <div class="progress-bar">
                     <div class="progress-fill"></div>
                 </div>
                 <p style="color: #00ff00; margin-top: 1rem; text-align: center;">
-                    ✓ Данные успешно записаны в базу безопасности
+                    ✓ Data successfully recorded to security database
                 </p>
             </div>
             
             <div class="report-section">
-                <h2>⚠️ РЕКОМЕНДАЦИИ</h2>
+                <h2>⚠️ RECOMMENDATIONS</h2>
                 <ul style="color: #ffaaaa; margin-left: 2rem; line-height: 2;">
-                    <li>Используйте VPN для защиты своей приватности</li>
-                    <li>Регулярно очищайте cookies и кэш браузера</li>
-                    <li>Используйте режим инкогнито для чувствительных операций</li>
-                    <li>Установите расширения для блокировки трекеров</li>
-                    <li>Будьте осторожны при посещении незнакомых сайтов</li>
+                    <li>Use a VPN to protect your privacy</li>
+                    <li>Regularly clear cookies and browser cache</li>
+                    <li>Use incognito mode for sensitive operations</li>
+                    <li>Install tracker-blocking extensions</li>
+                    <li>Be cautious when visiting unfamiliar sites</li>
                 </ul>
             </div>
         </div>
         
         <div class="footer-note">
-            <p>Это демонстрационная страница для образовательных целей.</p>
-            <p style="margin-top: 0.5rem;">Все данные собираются только в рамках учебного проекта по кибербезопасности.</p>
+            <p>This is a demonstration page for educational purposes only.</p>
+            <p style="margin-top: 0.5rem;">All data is collected solely as part of an educational cybersecurity project.</p>
             <p style="margin-top: 1rem; color: #00ff00;">
-                ID отчета: <span id="report-id"></span>
+                Report ID: <span id="report-id"></span>
             </p>
         </div>
     </div>
 
     <script>
-        // Данные из Flask шаблона (автоматически конвертируются в JSON)
         const reportData = {{ intercept_data | tojson }};
         
-        // Заполнение данных отчета
-        document.getElementById('intercept-time').textContent = reportData.timestamp || new Date().toLocaleString('ru-RU');
-        document.getElementById('ip-address').textContent = reportData.ip_address || 'Скрыто';
+        document.getElementById('intercept-time').textContent = reportData.timestamp || new Date().toLocaleString('en-US');
+        document.getElementById('ip-address').textContent = reportData.ip_address || 'Hidden';
         document.getElementById('browser').textContent = reportData.browser || navigator.userAgent;
-        document.getElementById('os').textContent = reportData.os || 'Неизвестно';
-        document.getElementById('device').textContent = reportData.device || 'Неизвестно';
+        document.getElementById('os').textContent = reportData.os || 'Unknown';
+        document.getElementById('device').textContent = reportData.device || 'Unknown';
         document.getElementById('language').textContent = reportData.accept_language || navigator.language;
-        document.getElementById('referer').textContent = reportData.referer || document.referrer || 'Прямой переход';
-        document.getElementById('fingerprint').textContent = reportData.fingerprint || 'Генерация...';
+        document.getElementById('referer').textContent = reportData.referer || document.referrer || 'Direct';
+        document.getElementById('fingerprint').textContent = reportData.fingerprint || 'Generating...';
         document.getElementById('report-id').textContent = reportData.session_id || Math.random().toString(36).substr(2, 16).toUpperCase();
-        document.getElementById('timestamp').textContent = new Date().toLocaleString('ru-RU');
+        document.getElementById('timestamp').textContent = new Date().toLocaleString('en-US');
         
-        // Генерация эффекта матрицы
         function createMatrix() {
             const matrix = document.getElementById('matrix');
             const chars = '01アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン';
@@ -369,10 +365,8 @@
             draw();
         }
         
-        // Запуск эффекта матрицы
         createMatrix();
         
-        // Анимация появления данных
         setTimeout(() => {
             document.querySelectorAll('.info-value').forEach((el, i) => {
                 setTimeout(() => {

@@ -28,13 +28,38 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Проверка прав доступа к директориям
+check_permissions() {
+    local dir=$1
+    if [ ! -d "$dir" ]; then
+        log_error "Директория $dir не существует"
+        return 1
+    fi
+    if [ ! -w "$dir" ]; then
+        log_error "Нет прав на запись в $dir"
+        return 1
+    fi
+    return 0
+}
+
 # Функция для инициализации директорий
 init_directories() {
     log_info "Инициализация директорий..."
     
-    # Создание директорий с правильными правами
-    mkdir -p /app/data /app/reports /app/logs
-    mkdir -p /var/lib/tor-interceptor/hidden_service
+    # Проверка и создание директорий с правильными правами
+    for dir in /app/data /app/reports /app/logs /var/lib/tor-interceptor/hidden_service; do
+        if [ ! -d "$dir" ]; then
+            mkdir -p "$dir" 2>/dev/null || {
+                log_error "Не удалось создать директорию $dir"
+                return 1
+            }
+        fi
+    done
+    
+    # Проверка прав на критические директории
+    check_permissions "/app/data" || return 1
+    check_permissions "/app/logs" || return 1
+    check_permissions "/var/lib/tor-interceptor" || return 1
     
     # Инициализация базы данных если не существует
     if [ ! -f "/app/data/intercepts.db" ]; then
@@ -45,14 +70,22 @@ import sys
 sys.path.append('/app')
 from app import init_db
 init_db()
-" 2>/dev/null || log_warning "Не удалось инициализировать базу данных"
+" 2>/dev/null || {
+            log_warning "Не удалось инициализировать базу данных через Python, создаем вручную"
+            sqlite3 /app/data/intercepts.db "CREATE TABLE IF NOT EXISTS intercepts (id INTEGER PRIMARY KEY);" || {
+                log_error "Не удалось создать базу данных"
+                return 1
+            }
+        }
         
-        # Перемещение базы в data директорию
+        # Перемещение базы в data директорию (если создалась в /app)
         if [ -f "/app/intercepts.db" ]; then
-            mv /app/intercepts.db /app/data/
-            ln -sf /app/data/intercepts.db /app/intercepts.db
+            mv /app/intercepts.db /app/data/ 2>/dev/null || true
         fi
-    else
+    fi
+    
+    # Создание симлинка для обратной совместимости
+    if [ ! -L "/app/intercepts.db" ] && [ -f "/app/data/intercepts.db" ]; then
         ln -sf /app/data/intercepts.db /app/intercepts.db 2>/dev/null || true
     fi
     
@@ -62,6 +95,12 @@ init_db()
 # Функция запуска Tor
 start_tor() {
     log_info "Запуск Tor..."
+    
+    # Проверка прав на директории Tor
+    check_permissions "/var/lib/tor-interceptor" || {
+        log_error "Проблемы с правами на /var/lib/tor-interceptor"
+        return 1
+    }
     
     # Проверка существования конфигурации
     if [ ! -f "/etc/tor/torrc-interceptor" ]; then
@@ -82,19 +121,33 @@ HiddenServiceVersion 3
 ExitPolicy reject *:*
 ExitRelay 0
 PublishServerDescriptor 0
+RunAsDaemon 0
 EOF
     else
         cp /etc/tor/torrc-interceptor /tmp/torrc-interceptor
     fi
     
+    # Проверка прав на конфигурацию
+    chmod 644 /tmp/torrc-interceptor
+    
     # Запуск Tor в фоне
+    log_info "Запуск процесса Tor..."
     tor -f /tmp/torrc-interceptor --quiet &
     TOR_PID=$!
     
-    # Ожидание запуска Tor
-    log_info "Ожидание запуска Tor..."
+    # Проверка что процесс запустился
+    sleep 2
+    if ! kill -0 $TOR_PID 2>/dev/null; then
+        log_error "Процесс Tor не запустился"
+        return 1
+    fi
+    
+    # Ожидание запуска портов Tor
+    log_info "Ожидание открытия портов Tor..."
     for i in {1..30}; do
-        if netstat -tuln 2>/dev/null | grep -q ":9050 " && netstat -tuln 2>/dev/null | grep -q ":9051 "; then
+        # Используем /proc/net/tcp вместо netstat для проверки портов
+        # Порт 9050 = 0x235A в hex, порт 9051 = 0x235B в hex
+        if grep -q ":235A" /proc/net/tcp && grep -q ":235B" /proc/net/tcp; then
             log_success "Tor запущен (PID: $TOR_PID)"
             echo $TOR_PID > /tmp/tor.pid
             return 0
@@ -102,7 +155,12 @@ EOF
         sleep 2
     done
     
-    log_error "Не удалось запустить Tor"
+    log_error "Не удалось запустить Tor - порты не открылись"
+    # Вывод последних строк лога для диагностики
+    if [ -f "/app/logs/tor.log" ]; then
+        log_error "Последние строки лога Tor:"
+        tail -10 /app/logs/tor.log
+    fi
     return 1
 }
 
@@ -141,7 +199,8 @@ start_flask() {
     
     # Проверка запуска
     for i in {1..20}; do
-        if netstat -tuln 2>/dev/null | grep -q ":5000 "; then
+        # Порт 5000 = 0x1388 в hex
+        if grep -q ":1388" /proc/net/tcp; then
             log_success "Flask приложение запущено (PID: $FLASK_PID)"
             echo $FLASK_PID > /tmp/flask.pid
             return 0
@@ -157,8 +216,8 @@ start_flask() {
 health_check() {
     log_info "Проверка здоровья сервисов..."
     
-    # Проверка Tor
-    if ! netstat -tuln 2>/dev/null | grep -q ":9050 "; then
+    # Проверка Tor (порты 9050 и 9051 в hex)
+    if ! grep -q ":235A" /proc/net/tcp; then
         log_error "Tor SOCKS прокси недоступен"
         return 1
     fi
@@ -205,14 +264,14 @@ monitor_services() {
     while true; do
         sleep 30
         
-        # Проверка Tor
-        if ! netstat -tuln 2>/dev/null | grep -q ":9050 "; then
+        # Проверка Tor (порт 9050 в hex = 235A)
+        if ! grep -q ":235A" /proc/net/tcp; then
             log_warning "Tor недоступен, перезапуск..."
             start_tor
         fi
         
-        # Проверка Flask
-        if ! curl -f http://localhost:5000/ >/dev/null 2>&1; then
+        # Проверка Flask (порт 5000 в hex = 1388)
+        if ! grep -q ":1388" /proc/net/tcp; then
             log_warning "Flask недоступен, перезапуск..."
             start_flask
         fi

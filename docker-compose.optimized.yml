@@ -1,0 +1,115 @@
+version: '3.8'
+
+# =============================================================================
+# Web Server Interceptor - Оптимизированная конфигурация
+# Для production использования с минимальными рисками
+# =============================================================================
+
+services:
+  # Основное приложение - Web Server Interceptor
+  interceptor:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+      args:
+        APP_USER: interceptor
+        APP_UID: 1000
+        APP_GID: 1000
+    image: web-interceptor:latest
+    container_name: web-interceptor
+    restart: unless-stopped
+    
+    # Порты (маппинг только необходимых)
+    ports:
+      - "127.0.0.1:5000:5000"   # Flask (только localhost для безопасности)
+      # Раскомментируйте для внешнего доступа:
+      # - "5000:5000"           # Flask (внешний доступ)
+      # - "9050:9050"           # Tor SOCKS (не рекомендуется)
+    
+    # Volumes для персистентности данных
+    volumes:
+      - interceptor_data:/app/data
+      - interceptor_reports:/app/reports
+      - interceptor_logs:/app/logs
+      - tor_data:/var/lib/tor-interceptor
+    
+    # Переменные окружения
+    environment:
+      - FLASK_ENV=production
+      - TOR_ENABLED=true
+      - LOG_LEVEL=INFO
+      - MAX_REPORTS=10000
+      - PYTHONUNBUFFERED=1
+    
+    # Сетевая конфигурация
+    networks:
+      - interceptor_network
+    
+    # Ограничения ресурсов (важно для стабильности)
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Настройки безопасности
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    read_only: false  # Нужна запись в /app/data, /app/logs
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100M
+
+# =============================================================================
+# Сетевая конфигурация
+# =============================================================================
+networks:
+  interceptor_network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+# =============================================================================
+# Volumes для персистентности данных
+# =============================================================================
+volumes:
+  interceptor_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./data
+  
+  interceptor_reports:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./reports
+  
+  interceptor_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ./logs
+  
+  tor_data:
+    driver: local
