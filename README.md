@@ -1,163 +1,137 @@
 # 🔍 Web Server Interceptor
 
-> **Full English documentation:** [docs/en/](docs/en/)
+> **Full English docs:** [docs/en/](docs/en/) · **Russian manual:** [README_ru.md](README_ru.md)
 
-Simple web server interceptor for collecting client information with anonymization through Tor. Created for educational purposes in cybersecurity.
-
-## 🎯 Features
-
-- **🎭 Mask Site** - Looks like a regular news site, automatically redirects to intercept
-- **📊 Funny Intercept Report** - Shows user a "intercept report" in hacker style
-- **🔄 Automatic Redirect** - Through Tor to intercept server with all data saved
-- **📈 Extended Data Collection** - User-Agent, OS, device, language, cookies, fingerprint, session ID
-- **🧅 Anonymization via Tor** - Traffic proxying through Tor network
-- **🌐 Tor Hidden Service (.onion)** - Automatic creation and use of .onion address
-- **📝 Extended Logging** - Multi-level logging system with rotation
-- **💾 Report Database** - SQLite database for storing intercepted data and logs
-- **🔧 Administrative Panel** - Web interface for viewing reports
-- **🐳 Docker Support** - Full containerization for easy deployment
-- **🌍 Multi-language** - English and Russian support
-
-## 🚀 Quick Start
-
-### 1. Clone and Setup
-```bash
-# Navigate to project directory
-cd web-server-intercepter
-
-# Install dependencies and start
-./run.sh start
-```
-
-### 2. Manual Installation
-```bash
-# Install Python dependencies
-pip3 install -r requirements.txt
-
-# Install Tor (Debian/Ubuntu/Kali)
-sudo apt update && sudo apt install tor
-
-# Start Tor
-python3 tor_setup.py start
-
-# Start web server
-python3 app.py
-```
-
-## 🎮 Usage
-
-### Service Management
-```bash
-# Start all services
-./run.sh start
-
-# Stop services
-./run.sh stop
-
-# Restart
-./run.sh restart
-
-# Check status
-./run.sh status
-
-# View logs
-./run.sh logs
-
-# Cleanup data
-./run.sh cleanup
-```
-
-### Access Interfaces
-
-#### 🎭 Mask Site (entrypoint)
-- **Localhost**: http://localhost:5000/mask
-- **Local Network**: http://[local-IP]:5000/mask
-- **Public IP**: http://[public-IP]:5000/mask
-- **Tor Hidden Service**: http://[onion-address].onion/mask
-  - Looks like a regular news site
-  - Automatically redirects to intercept page
-
-#### 📊 Intercept Page (funny report)
-- **Localhost**: http://localhost:5000/intercept
-- **Local Network**: http://[local-IP]:5000/intercept
-- **Public IP**: http://[public-IP]:5000/intercept
-- **Tor**: http://[onion-address].onion/intercept
-  - Shows user "intercept report"
-  - Displays all collected data in funny format
-
-#### 🔧 Administrative Panel
-- **Localhost**: http://localhost:5000/admin/reports
-- **Local Network**: http://[local-IP]:5000/admin/reports
-- **Public IP**: http://[public-IP]:5000/admin/reports
-- **Tor**: http://[onion-address].onion/admin/reports
-- **API**: http://localhost:5000/admin/api/reports
-  - Returns JSON with reports and .onion address
-
-#### Language Selection
-Add `?lang=en` or `?lang=ru` to any URL:
-- http://localhost:5000/mask?lang=en
-- http://localhost:5000/intercept?lang=ru
-
-## 📋 Requirements
-
-### System
-- Linux (preferably Kali Linux)
-- Python 3.7+
-- Tor
-- SQLite3
-
-### Python Packages
-```
-Flask==2.3.3
-user-agents==2.2.0
-requests==2.31.0
-stem==1.8.1
-PySocks==1.7.1
-```
-
-## 🔒 Security and Anonymity
-
-### Tor Configuration
-- SOCKS proxy on port 9050
-- Control port 9051
-- Automatic hidden service creation
-- Exit relay disabled for security
-
-### Recommendations
-1. **Use only in isolated environment** (VM)
-2. **Regularly change Tor identity**
-3. **Do not use on production servers**
-4. **Comply with your country's laws**
-
-## ⚖️ Legal Information
-
-### ⚠️ IMPORTANT WARNING
-This project is created exclusively for **educational purposes** in cybersecurity.
-
-### Permitted Use:
-- ✅ Learning and studying web security
-- ✅ Testing your own systems
-- ✅ Academic research
-- ✅ Demonstrations in controlled environment
-
-### Prohibited Use:
-- ❌ Collecting data without user consent
-- ❌ Violating third-party privacy
-- ❌ Any illegal activity
-- ❌ Use against real users without permission
-
-### Responsibility
-Authors are not responsible for misuse of this software. User bears full responsibility for compliance with laws of their jurisdiction.
-
-## 📝 License
-
-This project is distributed under MIT license for educational purposes.
-
-## 👨‍💻 Author
-
-Created for cybersecurity education purposes.
+Web server interceptor for collecting client information with Tor anonymization. Educational cybersecurity project. **Runs via Docker.**
 
 ---
 
-**🎓 Educational Cybersecurity Project**  
-*Use responsibly and in accordance with laws*
+## 🚀 Quick Start (Docker)
+
+### Requirements
+
+- **Docker** and **Docker Compose**
+- macOS, Linux, or Windows (with Docker Desktop)
+
+### 1. Start Docker
+
+- **macOS:** Start Docker Desktop or OrbStack  
+- **Linux:** `sudo systemctl start docker`  
+- **Windows:** Start Docker Desktop  
+
+### 2. Build and run
+
+From the project root:
+
+```bash
+git clone <your-repo-url>
+cd web-server-intercepter
+
+./docker-build-and-run.sh
+```
+
+The script will:
+
+- Check Docker and Docker Compose
+- Create `data/`, `reports/`, `logs/`
+- Build the image and start the container
+- Print access URLs and (after ~1–2 min) the .onion address
+
+### 3. Open in browser
+
+- **Main / mask site:** http://localhost:5000  
+- **Admin panel:** http://localhost:5000/admin/reports  
+- **Intercept page:** http://localhost:5000/intercept  
+
+**.onion address** (after Tor is ready):
+
+```bash
+docker exec web-interceptor cat /var/lib/tor-interceptor/hidden_service/hostname
+```
+
+---
+
+## 🎮 Usage (Docker)
+
+| Action        | Command |
+|---------------|--------|
+| Start         | `./docker-build-and-run.sh` or `docker-compose -f docker-compose.optimized.yml up -d` |
+| Stop          | `docker stop web-interceptor` |
+| Restart       | `docker restart web-interceptor` |
+| Logs          | `docker logs -f web-interceptor` |
+| Get .onion    | `docker exec web-interceptor cat /var/lib/tor-interceptor/hidden_service/hostname` |
+
+**Optional:** from project root, run `./scripts/check-docker-files.sh` to verify Docker-related files.
+
+---
+
+## 🎯 Features
+
+- **Mask site** – Looks like a news site, redirects to intercept
+- **Intercept report** – “Hacker-style” report page with collected data
+- **Data collection** – IP, User-Agent, OS, device, language, fingerprint, etc.
+- **Tor** – SOCKS proxy, hidden service (.onion)
+- **Admin panel** – http://localhost:5000/admin/reports
+- **Multi-language** – English (default), Russian (`?lang=ru`)
+
+---
+
+## 📁 Project structure (paths)
+
+What you need for Docker:
+
+| Path | Purpose |
+|------|--------|
+| **Root** | |
+| `docker-build-and-run.sh` | Main script: build + run (use this) |
+| `Dockerfile` | Image definition |
+| `docker-compose.yml` | Default Compose |
+| `docker-compose.optimized.yml` | Recommended Compose (security, limits) |
+| `app.py`, `requirements.txt` | Application (used inside image) |
+| `docker/` | `entrypoint.sh`, `torrc`, `nginx.conf` |
+| `templates/`, `locales/` | App templates and translations |
+| **Data (created at runtime)** | |
+| `data/` | SQLite DB, onion env (persistent) |
+| `logs/` | App and Tor logs |
+| `reports/` | Exported reports |
+| **Documentation** | |
+| `docs/en/` | **English docs** – [README](docs/en/README.md), [Quick Docker Start](docs/en/QUICK_DOCKER_START.md), [Structure](docs/en/STRUCTURE.md), [Docker Guide](docs/en/DOCKER_OPTIMIZED_GUIDE.md) |
+| `docs/QUICK_DOCKER_START.md` | Short Docker quick start (other language) |
+| `docs/internal/` | Internal/developer notes (e.g. bugfix notes) |
+| `README_ru.md` | Full Russian manual |
+| **Scripts** | |
+| `scripts/check-docker-files.sh` | Optional: check Docker files (run from project root) |
+| **Platform-specific (optional)** | |
+| `kali-local/` | Kali Linux – see [kali-local/README.md](kali-local/README.md) |
+| `raspberry-production/` | Raspberry Pi – see [raspberry-production/README.md](raspberry-production/README.md) |
+| `gu/information/` | Extra guides (external access, logging, etc.) |
+
+You don’t need to edit anything under `docker/`, `docs/internal/`, or platform folders unless you’re customizing or debugging.
+
+---
+
+## 📋 Requirements (Docker only)
+
+- Docker (20.10+)
+- Docker Compose (v2 or `docker-compose` v1.29+)
+- ~500 MB disk for image, ~256 MB RAM for container
+
+No need to install Python, Tor, or SQLite on the host; they run inside the container.
+
+---
+
+## 🔒 Security and legal
+
+- Use only in an **isolated environment** (e.g. VM).
+- **Educational use only.** Comply with your local laws.
+- Do not collect data without consent; do not use against real users without permission.
+
+---
+
+## 📝 License
+
+MIT, educational use.
+
+---
+
+**🎓 Educational Cybersecurity Project** — use responsibly.

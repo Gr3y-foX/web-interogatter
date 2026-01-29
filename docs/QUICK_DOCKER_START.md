@@ -1,5 +1,7 @@
 # 🚀 Быстрый старт Docker (5 минут)
 
+*(Файл в `docs/`. Основной мануал — [README.md](../README.md) в корне.)*
+
 ## Перед запуском
 
 **1. Запустите Docker daemon:**
@@ -17,7 +19,7 @@ docker-compose --version
 
 ### Шаг 1: Автоматическая сборка и запуск
 ```bash
-cd /Users/phenix/Projects/web-server-intercepter
+cd web-server-intercepter   # в корень проекта
 ./docker-build-and-run.sh
 ```
 
@@ -124,9 +126,10 @@ docker exec web-interceptor cat /app/logs/tor.log
 
 ## Полная документация
 
-- **DOCKER_OPTIMIZED_GUIDE.md** - Детальное руководство
-- **CHANGELOG_DOCKER.md** - Список изменений
-- **README.md** - Основная документация
+- **README.md** (в корне) — основной мануал, запуск через Docker
+- **docs/en/QUICK_DOCKER_START.md** — английская версия
+- **docs/en/DOCKER_OPTIMIZED_GUIDE.md** — детальное руководство по Docker
+- **docs/internal/** — внутренние заметки
 
 ---
 

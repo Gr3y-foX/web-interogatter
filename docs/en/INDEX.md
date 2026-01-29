@@ -20,9 +20,11 @@ This folder contains **English copies** of the main project manuals.
 
 ## 📁 Related
 
-- **Root README_EN.md** – Same content as docs/en/README.md (shortcut)
-- **Russian docs** – In project root: README.md, STRUCTURE.md, DOCKER_OPTIMIZED_GUIDE.md, etc.
-- **gu/information/** – Additional guides (mixed languages)
+- **Root README.md** – Main manual (Docker-first), links to docs/en/ and README_ru.md
+- **Russian manual** – README_ru.md (full), root README has link
+- **docs/internal/** – Internal/developer notes (bugfixes, etc.)
+- **scripts/check-docker-files.sh** – Optional check of Docker files (run from project root)
+- **gu/information/** – Additional guides (external access, logging, etc.)
 
 ## 🚀 Quick links
 

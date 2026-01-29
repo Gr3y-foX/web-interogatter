@@ -124,9 +124,10 @@ docker exec web-interceptor cat /app/logs/tor.log
 
 ## Full documentation
 
-- **DOCKER_OPTIMIZED_GUIDE.md** - Detailed guide
-- **CHANGELOG_DOCKER.md** - List of changes
-- **README.md** - Main documentation
+- **docs/en/DOCKER_OPTIMIZED_GUIDE.md** – Detailed Docker guide
+- **docs/en/README.md** – Main English readme
+- **README.md** (root) – Main manual, Docker-first
+- **docs/internal/** – Internal/developer notes
 
 ---
 
